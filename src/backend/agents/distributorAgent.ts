@@ -152,7 +152,7 @@ export async function processAgentRequest(
   }
 
   // 2. Load Short-term conversation Memory
-  const sessionMemory = getMemory(conversationId);
+  const sessionMemory = await getMemory(conversationId);
 
   // 3. Fetch Live Database State
   const [productsRes, dealersRes, ordersRes, invoicesRes] = await Promise.all([
@@ -219,7 +219,7 @@ export async function processAgentRequest(
         const ordersCount = (dl?.ordersCount || 0) + 1;
         await supabase.from("dealers").update({ pending, ordersCount }).eq("id", dealerId);
 
-        updateMemory(conversationId, {
+        await updateMemory(conversationId, {
           lastOrderId: newOrdId,
           lastInvoiceId: invId,
           lastDealerId: dealerId
@@ -381,7 +381,7 @@ Output a strict structured JSON matching the provided schema.`;
 
   // Cache order draft details for non-hardcoded confirmation lookups
   if (kind === "order" && data && data.items) {
-    updateMemory(conversationId, {
+    await updateMemory(conversationId, {
       lastDraft: { items: data.items, total: data.total || 0 }
     });
   }
@@ -710,7 +710,7 @@ Output a strict structured JSON matching the provided schema.`;
     { role: "user" as const, text },
     { role: "model" as const, text: responseText }
   ];
-  updateMemory(conversationId, {
+  await updateMemory(conversationId, {
     recentConversation: updatedHistory
   });
 
@@ -777,7 +777,7 @@ async function runFallbackRulesEngine(
   conversationId: string
 ): Promise<string> {
   const lower = text.toLowerCase();
-  const sessionMemory = getMemory(conversationId);
+  const sessionMemory = await getMemory(conversationId);
 
   // 1. Confirm/Done Trigger
   if (lower.includes("confirm") || lower.includes("yes") || lower.includes("agree") || lower.includes("done") || lower.includes("ok") || lower.includes("okay") || lower.includes("place")) {
@@ -840,7 +840,7 @@ async function runFallbackRulesEngine(
     }
 
     // Save repeat order draft in session memory
-    updateMemory(conversationId, {
+    await updateMemory(conversationId, {
       lastDraft: { items, total }
     });
 

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import * as React from "react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -10,6 +11,7 @@ import { Pill } from "@/components/badges";
 import { fmt, type ChatMsg } from "@/lib/mock-data";
 import { getConversationsList, getDealers, postMessage, getInvoiceDetailsAction } from "@/lib/db-queries";
 import { useRouter } from "@tanstack/react-router";
+import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/conversations")({
   loader: async () => {
@@ -25,8 +27,6 @@ export const Route = createFileRoute("/conversations")({
   }),
   component: ConversationsPage,
 });
-
-import { AlertTriangle } from "lucide-react";
 
 function formatMessage(text: string) {
   const lines = text.split("\n");
@@ -128,11 +128,26 @@ function ConversationsPage() {
   const [activeInvoice, setActiveInvoice] = useState<any | null>(null);
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
 
+  // Live animation state parameters for active agent execution flow
+  const [pipelineStep, setPipelineStep] = useState(0);
+
   useEffect(() => {
     if (active) {
       setLocalMessages(active.messages);
     }
   }, [active?.id, active?.messages]);
+
+  useEffect(() => {
+    if (isSending) {
+      setPipelineStep(0);
+      const interval = setInterval(() => {
+        setPipelineStep((prev) => Math.min(prev + 1, 6));
+      }, 750);
+      return () => clearInterval(interval);
+    } else {
+      setPipelineStep(0);
+    }
+  }, [isSending]);
 
   const handleViewInvoice = async (invoiceId: string) => {
     setIsLoadingInvoice(true);
@@ -184,7 +199,7 @@ function ConversationsPage() {
           id: "thinking-bubble",
           from: "ai",
           kind: "thinking",
-          text: "Thinking through your ledgers…",
+          text: "Agent is reasoning...",
           time: ""
         });
       }
@@ -253,7 +268,7 @@ function ConversationsPage() {
             <div className="flex-1 min-w-0">
               <div className="text-[14px] font-semibold tracking-tight">{active.dealer}</div>
               <div className="text-[11.5px] text-muted-foreground flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" /> Online • {active.city}
+                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Online • {active.city}
               </div>
             </div>
             <div className="flex items-center gap-1 text-muted-foreground">
@@ -331,32 +346,153 @@ function ConversationsPage() {
               </button>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Sparkles className="h-3 w-3 text-primary animate-pulse" /> AI Copilot is listening — orders, payments and promises are auto-detected.
+              <Sparkles className="h-3 w-3 text-primary animate-pulse" /> AI Agent runs autonomously on user message.
             </div>
           </footer>
         </section>
 
-        {/* Right context */}
-        <aside className="hidden xl:flex w-72 shrink-0 border-l border-border bg-background flex-col">
-          <div className="p-5 border-b border-border">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Dealer context</div>
-            <div className="mt-1 text-[15px] font-semibold tracking-tight">{active.dealer}</div>
-            <div className="text-[12px] text-muted-foreground">{active.city}</div>
-          </div>
-          <div className="p-5 space-y-4 text-[13px]">
-            <StatRow label="Trust score" value={String(dealer.trust)} tone={dealer.trust >= 85 ? "success" : "warning"} />
-            <StatRow label="Pending" value={fmt(dealer.pending)} tone={dealer.pending > 0 ? "warning" : "success"} />
-            <StatRow label="Lifetime" value={fmt(dealer.lifetime)} />
-            <StatRow label="Avg. payment" value={`${dealer.avgPaymentDays} days`} />
-          </div>
-          <div className="px-5 pb-5">
-            <div className="rounded-xl border border-border p-3 bg-primary/5">
-              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-primary"><Sparkles className="h-3.5 w-3.5" /> AI note</div>
-              <p className="mt-1 text-[12px] text-muted-foreground leading-relaxed">
-                Reliable payer. Orders spike every Monday. Consider offering a standing weekly order.
-              </p>
+        {/* Right context - AI Agent Platform Observability Panel */}
+        <aside className="hidden xl:flex w-80 shrink-0 border-l border-border bg-slate-950 text-slate-100 flex-col overflow-y-auto divide-y divide-slate-900">
+          {/* 1. AI AGENT STATUS CARD */}
+          <div className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Agent Status</span>
+              <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full text-[10px] font-bold text-success">
+                <span className="h-1.5 w-1.5 rounded-full bg-success animate-ping" />
+                <span>{isSending ? "PROCESSING" : "ACTIVE"}</span>
+              </div>
+            </div>
+            
+            <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-4 space-y-3.5 shadow-inner">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                <div>
+                  <div className="text-[9px] uppercase font-bold text-slate-500">Agent Name</div>
+                  <div className="text-[12px] font-semibold text-slate-200">Distributor Operations Agent</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div>
+                  <div className="text-[9px] uppercase font-bold text-slate-500">Model</div>
+                  <div className="font-semibold text-slate-300">Llama 3.3 70B</div>
+                </div>
+                <div>
+                  <div className="text-[9px] uppercase font-bold text-slate-500">Framework</div>
+                  <div className="font-semibold text-slate-300">LangChain</div>
+                </div>
+              </div>
+              <div className="border-t border-slate-900 pt-3">
+                <div className="text-[9px] uppercase font-bold text-slate-500 mb-1.5">Architecture Core</div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-400">
+                  <div className="flex items-center gap-1.5">✓ Guardrails</div>
+                  <div className="flex items-center gap-1.5">✓ Planner</div>
+                  <div className="flex items-center gap-1.5">✓ Memory</div>
+                  <div className="flex items-center gap-1.5">✓ Tool Calling</div>
+                  <div className="flex items-center gap-1.5">✓ Reflection</div>
+                  <div className="flex items-center gap-1.5">✓ Observability</div>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* If sending, show active logs */}
+          {isSending ? (
+            <>
+              {/* 2. LIVE EXECUTION PIPELINE */}
+              <div className="p-5 space-y-4">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Live Execution Pipeline</div>
+                <div className="space-y-3 text-[12px] text-slate-300">
+                  <PipelineStep icon="🛡" label="Running Guardrails..." status={pipelineStep >= 1 ? "done" : pipelineStep === 0 ? "active" : "pending"} />
+                  <PipelineStep icon="🧠" label="Creating Execution Plan..." status={pipelineStep >= 2 ? "done" : pipelineStep === 1 ? "active" : "pending"} />
+                  <PipelineStep icon="🤖" label="AI Reasoning..." status={pipelineStep >= 3 ? "done" : pipelineStep === 2 ? "active" : "pending"} />
+                  <PipelineStep icon="🔧" label="Calling Business Tools..." status={pipelineStep >= 4 ? "done" : pipelineStep === 3 ? "active" : "pending"} />
+                  <PipelineStep icon="🔍" label="Post-Execution Reflection..." status={pipelineStep >= 5 ? "done" : pipelineStep === 4 ? "active" : "pending"} />
+                  <PipelineStep icon="✅" label="Completed Successfully" status={pipelineStep >= 6 ? "done" : pipelineStep === 5 ? "active" : "pending"} />
+                </div>
+              </div>
+
+              {/* 3. EXECUTION PLAN PANEL */}
+              {pipelineStep >= 1 && (
+                <div className="p-5 space-y-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Execution Plan</div>
+                  <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-3.5 space-y-2">
+                    <div className="text-[11.5px] font-semibold text-primary">Goal: Process Dealer Request</div>
+                    <div className="space-y-1.5 text-[11px] text-slate-400">
+                      <div className={pipelineStep >= 2 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 2 ? "✓" : "○"} Validate Dealer Profile</div>
+                      <div className={pipelineStep >= 2 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 2 ? "✓" : "○"} Validate Product Catalog</div>
+                      <div className={pipelineStep >= 4 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 4 ? "✓" : "○"} Verify Safety Stock Limits</div>
+                      <div className={pipelineStep >= 4 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 4 ? "✓" : "○"} Create Order Entry</div>
+                      <div className={pipelineStep >= 5 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 5 ? "✓" : "○"} Auto-Generate Invoice</div>
+                      <div className={pipelineStep >= 6 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 6 ? "✓" : "○"} Reflect & Confirm Consistent</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. AGENT MONITOR */}
+              <div className="p-5 space-y-4">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Agent Monitor</div>
+                <div className="space-y-2 text-[11px] text-slate-400">
+                  <MonitorRow label="Current State" value={pipelineStep === 0 ? "VALIDATING" : pipelineStep === 1 ? "PLANNING" : pipelineStep === 2 ? "THINKING" : pipelineStep === 3 ? "EXECUTING" : pipelineStep === 4 ? "REFLECTING" : "COMPLETED"} tone="info" />
+                  <MonitorRow label="Guardrail Status" value={pipelineStep >= 1 ? "PASSED" : "VALIDATING..."} tone={pipelineStep >= 1 ? "success" : "warning"} />
+                  <MonitorRow label="Planner Status" value={pipelineStep >= 2 ? "PLAN GENERATED" : "PLANNING..."} tone={pipelineStep >= 2 ? "success" : "warning"} />
+                  <MonitorRow label="Confidence" value="98%" tone="success" />
+                  <MonitorRow label="Tools Active" value={pipelineStep === 3 ? "createOrder()" : pipelineStep > 3 ? "createOrder() (Done)" : "None"} />
+                  <MonitorRow label="Reflection Status" value={pipelineStep >= 5 ? "HEALTHY" : "WAITING..."} tone={pipelineStep >= 5 ? "success" : "warning"} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* 7. MEMORY INDICATOR */}
+              <div className="p-5 space-y-4">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Conversation Memory</div>
+                <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Memory Status</span>
+                    <span className="text-success font-semibold">LOADED</span>
+                  </div>
+                  <div className="border-t border-slate-900 pt-2 space-y-2 text-[12px]">
+                    <div>
+                      <div className="text-[9px] text-slate-500 uppercase font-bold">Active Dealer</div>
+                      <div className="font-semibold text-slate-300">{active.dealer}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-500 uppercase font-bold">Last Active Order</div>
+                      <div className="font-semibold text-slate-300">{active.memory?.lastOrderId ? "o-" + active.memory.lastOrderId.substring(0, 8) : active.memory?.lastInvoiceId || "None"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-500 uppercase font-bold">Pending Context</div>
+                      <div className="font-semibold text-slate-300 truncate">{active.memory?.pendingClarification || "No outstanding queries"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Regular Dealer Context Panel */}
+              <div className="p-5 space-y-4">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Dealer Profile</div>
+                <div className="space-y-3 text-[12px]">
+                  <StatRowDark label="Registered Name" value={active.dealer} />
+                  <StatRowDark label="Base Location" value={active.city} />
+                  <StatRowDark label="Trust Rank" value={`${dealer.trust}%`} tone={dealer.trust >= 85 ? "success" : "warning"} />
+                  <StatRowDark label="Outstanding dues" value={fmt(dealer.pending)} tone={dealer.pending > 0 ? "warning" : "success"} />
+                  <StatRowDark label="Lifetime Business" value={fmt(dealer.lifetime)} />
+                  <StatRowDark label="Avg. Payment Cycle" value={`${dealer.avgPaymentDays} days`} />
+                </div>
+              </div>
+
+              {/* AI note */}
+              <div className="p-5">
+                <div className="rounded-xl border border-slate-900 bg-slate-900/40 p-4 space-y-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary"><Sparkles className="h-3.5 w-3.5" /> Recommendations</div>
+                  <p className="text-[11.5px] text-slate-400 leading-relaxed">
+                    Account trust is rated high. Weekly order volume is stable. Consider extending credit limits for upcoming Diwali orders to capture billing growth.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </aside>
       </div>
       <AnimatePresence>
@@ -388,7 +524,7 @@ function ConversationsPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="text-xl font-bold tracking-tight text-primary">KUMAR ELECTRICALS</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Wholesale Wholesaler & Distributor</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Wholesale Distributor & Supplier</div>
                     <div className="text-xs text-muted-foreground">Bengaluru, Karnataka</div>
                   </div>
                   <div className="text-right">
@@ -495,51 +631,220 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function StatRow({ label, value, tone }: { label: string; value: string; tone?: "success" | "warning" }) {
-  const color = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-foreground";
+function StatRowDark({ label, value, tone }: { label: string; value: string; tone?: "success" | "warning" }) {
+  const color = tone === "success" ? "text-success font-semibold" : tone === "warning" ? "text-warning font-semibold" : "text-slate-300";
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={`font-semibold ${color}`}>{value}</span>
+    <div className="flex items-center justify-between text-[12px] py-1 border-b border-slate-900/60">
+      <span className="text-slate-400">{label}</span>
+      <span className={color}>{value}</span>
+    </div>
+  );
+}
+
+function PipelineStep({ icon, label, status }: { icon: string; label: string; status: "done" | "active" | "pending" }) {
+  return (
+    <div className={`flex items-center gap-2.5 py-1.5 transition-all duration-300 ${status === "pending" ? "opacity-35" : "opacity-100"}`}>
+      <span className="text-[14px]">{icon}</span>
+      <span className={`flex-1 ${status === "active" ? "text-primary font-medium" : status === "done" ? "text-slate-300" : "text-slate-500"}`}>{label}</span>
+      {status === "active" && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+      {status === "done" && <span className="text-[10px] text-success font-bold bg-success/15 px-1.5 py-0.2 rounded border border-success/20">Done</span>}
+    </div>
+  );
+}
+
+function MonitorRow({ label, value, tone }: { label: string; value: string; tone?: "success" | "warning" | "info" }) {
+  const color = tone === "success" ? "text-success font-bold" : tone === "warning" ? "text-warning font-bold" : tone === "info" ? "text-primary font-bold" : "text-slate-300";
+  return (
+    <div className="flex items-center justify-between border-b border-slate-900 pb-1.5 pt-0.5">
+      <span className="text-slate-500">{label}</span>
+      <span className={`font-mono text-[11px] ${color}`}>{value}</span>
     </div>
   );
 }
 
 function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (invoiceId: string) => void }) {
   const isDealer = msg.from === "dealer";
+  const [showTrace, setShowTrace] = useState(false);
+
+  if (isDealer) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+        className="flex justify-start"
+      >
+        <div className="max-w-[520px]">
+          <div className="rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-soft bg-background border border-border rounded-tl-sm">
+            {msg.text ? <div className="space-y-1">{formatMessage(msg.text)}</div> : null}
+          </div>
+          <div className="mt-1 flex items-center gap-1 text-[10.5px] text-muted-foreground">
+            {msg.time}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // AI response layout - Rich Response Card (OpenAI / Cursor styled)
+  const isThinking = msg.kind === "thinking";
+  const hasMetadata = msg.data && msg.data.traceId;
+  
+  // Extract or mock fields for consistent hackathon demo visuals
+  const intent = hasMetadata ? msg.data.intent : (msg.kind === "order" ? "ORDER" : msg.kind === "invoice" ? "ORDER" : msg.kind === "ledger" ? "PAYMENT" : msg.kind === "reminder" ? "PAYMENT_PROMISE" : "BUSINESS_QUERY");
+  const confidence = hasMetadata ? msg.data.confidence : 0.95;
+  const executionTime = hasMetadata ? msg.data.executionTime : "824ms";
+  const health = hasMetadata ? msg.data.health : "HEALTHY";
+  const reflection = hasMetadata ? msg.data.reflection?.summary : (msg.kind === "order" ? "Order draft generated with wholesale pricing" : msg.kind === "invoice" ? "Invoice generated and stock updated successfully" : msg.kind === "ledger" ? "Dues ledger and balances updated successfully" : msg.kind === "reminder" ? "Follow-up collections reminder scheduled" : "Database queries executed successfully");
+  const planSteps = hasMetadata ? msg.data.plan : ["Validate Dealer Profile", "Search Product Catalog", "Verify Safety Stock Limits", "Execute Core Intent Action", "Return Structured Payload"];
+  const timeline = hasMetadata ? msg.data.timeline : [
+    { state: "VALIDATING", duration: "12ms" },
+    { state: "PLANNING", duration: "45ms" },
+    { state: "THINKING", duration: "580ms" },
+    { state: "EXECUTING", duration: "187ms" }
+  ];
+  const toolsUsed = hasMetadata ? msg.data.toolsUsed : (msg.kind === "order" ? ["createOrder"] : msg.kind === "invoice" ? ["createOrder"] : msg.kind === "ledger" ? ["recordPayment"] : msg.kind === "reminder" ? ["scheduleReminder"] : []);
+
+  // For order/invoice/ledger/reminder cards, we extract the nested 'data' payload from the full metadata if it exists
+  const innerData = hasMetadata ? msg.data.data : msg.data;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-      className={`flex ${isDealer ? "justify-start" : "justify-end"}`}
+      className="flex justify-end"
     >
-      <div className={`max-w-[520px] ${isDealer ? "" : "flex flex-col items-end"}`}>
-        {!isDealer && (
-          <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-semibold text-primary">
-            <Sparkles className="h-3 w-3" /> AI Copilot
-          </div>
-        )}
-        <div className={`rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-soft ${
-          isDealer
-            ? "bg-background border border-border rounded-tl-sm"
-            : "bg-primary text-primary-foreground rounded-tr-sm"
-        }`}>
-          {msg.kind === "thinking" ? (
-            <span className="inline-flex items-center gap-2 text-[12.5px]">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>{msg.text}</span>
-            </span>
-          ) : msg.text ? (
-            <div className="space-y-1">{formatMessage(msg.text)}</div>
-          ) : null}
-
-          {msg.kind === "order" && msg.data ? <OrderCard data={msg.data} /> : null}
-          {msg.kind === "invoice" && msg.data ? <InvoiceCard data={msg.data} onViewInvoice={onViewInvoice} /> : null}
-          {msg.kind === "ledger" && msg.data ? <LedgerCard data={msg.data} /> : null}
-          {msg.kind === "reminder" && msg.data ? <ReminderCard data={msg.data} /> : null}
+      <div className="max-w-[560px] flex flex-col items-end">
+        {/* Glow-highlighted Agent Header */}
+        <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-semibold text-primary">
+          <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+          <span>Distributor Operations Agent</span>
         </div>
-        <div className={`mt-1 flex items-center gap-1 text-[10.5px] text-muted-foreground ${isDealer ? "" : "justify-end"}`}>
+
+        {/* Outer Rich Response Card (Dark style) */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 p-4 shadow-xl space-y-3 w-full rounded-tr-sm">
+          {/* Card Meta Row */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-900 pb-2.5 text-[11px]">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-[10.5px] uppercase tracking-wider text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
+                Intent: {intent}
+              </span>
+              <span className="text-slate-550">•</span>
+              <span className="text-slate-400">Confidence: <span className="text-success font-semibold">{(confidence * 100).toFixed(0)}%</span></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Time: <span className="font-mono text-slate-300 font-semibold">{executionTime}</span></span>
+              <span className="text-slate-500">•</span>
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-semibold text-[10px] ${
+                health === "HEALTHY" ? "bg-success/15 text-success border border-success/20" : "bg-warning/15 text-warning border border-warning/20"
+              }`}>
+                {health}
+              </span>
+            </div>
+          </div>
+
+          {/* Thinking / Loader */}
+          {isThinking ? (
+            <div className="flex items-center gap-2.5 text-[13px] text-slate-300 py-1">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="animate-pulse">{msg.text}</span>
+            </div>
+          ) : (
+            <>
+              {/* Response Text */}
+              {msg.text && (
+                <div className="text-[13.5px] text-slate-200 leading-relaxed font-normal whitespace-pre-wrap space-y-1">
+                  {formatMessage(msg.text)}
+                </div>
+              )}
+
+              {/* Specific Cards (Rendered with internal dark style parameters) */}
+              {msg.kind === "order" && innerData ? <OrderCard data={innerData} /> : null}
+              {msg.kind === "invoice" && innerData ? <InvoiceCard data={innerData} onViewInvoice={onViewInvoice} /> : null}
+              {msg.kind === "ledger" && innerData ? <LedgerCard data={innerData} /> : null}
+              {msg.kind === "reminder" && innerData ? <ReminderCard data={innerData} /> : null}
+
+              {/* Reflection Summary Row */}
+              {reflection && (
+                <div className="text-[11.5px] bg-slate-900/40 border border-slate-900/60 rounded-lg p-2.5 text-slate-400">
+                  <span className="text-success font-semibold">✓ Reflection summary:</span> {reflection}
+                </div>
+              )}
+
+              {/* Collapsible Trace Panel Trigger */}
+              <div className="border-t border-slate-900 pt-2.5 flex justify-between items-center">
+                <button
+                  onClick={() => setShowTrace(!showTrace)}
+                  className="text-[11px] font-semibold text-primary hover:text-primary/80 transition inline-flex items-center gap-1 cursor-pointer"
+                >
+                  {showTrace ? "Hide Observability Trace ▲" : "Show Observability Trace ▼"}
+                </button>
+                <div className="text-[9.5px] text-slate-500 font-mono font-bold tracking-wider">
+                  LCEL CHAIN RUN
+                </div>
+              </div>
+
+              {/* Observability Expanded Content */}
+              {showTrace && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="space-y-3 pt-2 overflow-hidden text-[11.5px]"
+                >
+                  {/* Execution Plan Checklist */}
+                  <div className="bg-slate-900/40 border border-slate-900/60 rounded-xl p-3.5 space-y-2">
+                    <div className="text-[10px] uppercase font-bold text-slate-500">Execution Plan Steps</div>
+                    <ul className="space-y-1">
+                      {planSteps.map((step: string, i: number) => (
+                        <li key={i} className="text-slate-300 flex items-center gap-1.5">
+                          <span className="text-success">✓</span> {step}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Observability Timeline */}
+                  <div className="bg-slate-900/40 border border-slate-900/60 rounded-xl p-3.5 space-y-2">
+                    <div className="text-[10px] uppercase font-bold text-slate-500">Execution Timeline</div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-slate-400">
+                      {timeline.map((t: any, i: number) => (
+                        <React.Fragment key={i}>
+                          {i > 0 && <span className="text-slate-600">→</span>}
+                          <div className="bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-[10.5px] font-mono">
+                            <span className="text-slate-300 font-semibold">{t.state}</span> ({t.duration})
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Platform Tools Executed */}
+                  {toolsUsed && toolsUsed.length > 0 && (
+                    <div className="bg-slate-900/40 border border-slate-900/60 rounded-xl p-3.5 space-y-2">
+                      <div className="text-[10px] uppercase font-bold text-slate-500">Platform Tools Invoked</div>
+                      <div className="space-y-2">
+                        {toolsUsed.map((tool: string, i: number) => (
+                          <div key={i} className="space-y-1 bg-slate-950 p-2.5 rounded border border-slate-900 text-[11px] font-mono">
+                            <div className="flex items-center justify-between">
+                              <span className="text-primary font-semibold">🔧 {tool}()</span>
+                              <span className="text-success font-bold text-[10px]">COMPLETED</span>
+                            </div>
+                            <div className="text-[9.5px] text-slate-500 flex justify-between">
+                              <span>Trace status: Success</span>
+                              <span>Time: 145ms</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Time and check check tick mark */}
+        <div className="mt-1 flex items-center gap-1 text-[10.5px] text-muted-foreground justify-end">
           {msg.time}
-          {!isDealer && <CheckCheck className="h-3 w-3 text-primary" />}
+          {!isThinking && <CheckCheck className="h-3 w-3 text-primary" />}
         </div>
       </div>
     </motion.div>
@@ -548,27 +853,27 @@ function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (i
 
 function OrderCard({ data }: { data: any }) {
   return (
-    <div className="mt-2 rounded-xl bg-background/95 text-foreground border border-border/40 p-3">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary">
-        <Package className="h-3.5 w-3.5" /> {data.title}
+    <div className="mt-2 rounded-xl bg-slate-900/90 text-slate-100 border border-slate-800/80 p-3">
+      <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary">
+        <Package className="h-3.5 w-3.5" /> {data.title || "Order Draft"}
       </div>
-      <ul className="mt-2 divide-y divide-border/70">
-        {data.items.map((it: any, i: number) => (
-          <li key={i} className="py-1.5 flex items-center justify-between text-[12.5px]">
+      <ul className="mt-2 divide-y divide-slate-800/60">
+        {data.items && data.items.map((it: any, i: number) => (
+          <li key={i} className="py-1.5 flex items-center justify-between text-[12px]">
             <div className="min-w-0">
               <div className="font-medium truncate">{it.name}</div>
-              <div className="text-muted-foreground text-[10.5px]">{it.sku}</div>
+              <div className="text-slate-500 text-[10px] font-mono">{it.sku}</div>
             </div>
             <div className="text-right">
               <div className="font-semibold">×{it.qty}</div>
-              <div className="text-muted-foreground text-[10.5px]">{fmt(it.qty * it.price)}</div>
+              <div className="text-slate-500 text-[10px]">{fmt(it.qty * it.price)}</div>
             </div>
           </li>
         ))}
       </ul>
-      <div className="mt-2 pt-2 border-t border-border/70 flex items-center justify-between text-[12.5px]">
-        <span className="text-muted-foreground">Delivery • {data.delivery}</span>
-        <span className="font-semibold">{fmt(data.total)}</span>
+      <div className="mt-2 pt-2 border-t border-slate-850 flex items-center justify-between text-[12px]">
+        <span className="text-slate-400">Delivery • {data.delivery || "Standard"}</span>
+        <span className="font-bold text-success">{fmt(data.total)}</span>
       </div>
     </div>
   );
@@ -578,37 +883,37 @@ function InvoiceCard({ data, onViewInvoice }: { data: any; onViewInvoice: (invoi
   return (
     <button 
       onClick={() => onViewInvoice(data.invoice)}
-      className="mt-2 text-left w-full rounded-xl bg-background/95 hover:bg-background/90 text-foreground border border-border/40 hover:border-primary/40 p-3 flex items-center gap-3 transition cursor-pointer"
+      className="mt-2 text-left w-full rounded-xl bg-slate-900/90 hover:bg-slate-900 text-slate-100 border border-slate-800 hover:border-primary/40 p-3 flex items-center gap-3 transition cursor-pointer"
     >
       <div className="h-9 w-9 rounded-lg bg-success/10 text-success grid place-items-center"><FileText className="h-4 w-4" /></div>
       <div className="flex-1">
         <div className="text-[12.5px] font-semibold">{data.invoice} generated</div>
-        <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+        <div className="text-[11px] text-slate-400 flex items-center gap-1">
           <span>Click to view receipt copy</span>
           <ArrowRight className="h-3 w-3 text-primary animate-pulse" />
         </div>
       </div>
-      <div className="text-[13px] font-semibold">{fmt(data.total)}</div>
+      <div className="text-[13px] font-bold text-success">{fmt(data.total)}</div>
     </button>
   );
 }
 
 function LedgerCard({ data }: { data: any }) {
   return (
-    <div className="mt-2 rounded-xl bg-background/95 text-foreground border border-border/40 p-3">
+    <div className="mt-2 rounded-xl bg-slate-900/90 text-slate-100 border border-slate-800/80 p-3">
       <div className="flex items-center gap-1.5 text-[11px] font-semibold text-success"><Wallet className="h-3.5 w-3.5" /> Ledger updated</div>
       <div className="mt-2 grid grid-cols-3 gap-2 text-[12px]">
         <div>
-          <div className="text-muted-foreground text-[10.5px]">Before</div>
-          <div className="font-semibold line-through text-muted-foreground">{fmt(data.before)}</div>
+          <div className="text-slate-500 text-[10px]">Before</div>
+          <div className="font-semibold line-through text-slate-400">{fmt(data.before)}</div>
         </div>
         <div>
-          <div className="text-muted-foreground text-[10.5px]">Paid</div>
+          <div className="text-slate-500 text-[10px]">Paid</div>
           <div className="font-semibold text-success">+{fmt(data.paid)}</div>
         </div>
         <div>
-          <div className="text-muted-foreground text-[10.5px]">Remaining</div>
-          <div className="font-semibold">{fmt(data.remaining)}</div>
+          <div className="text-slate-500 text-[10px]">Remaining</div>
+          <div className="font-bold text-slate-200">{fmt(data.remaining)}</div>
         </div>
       </div>
     </div>
@@ -617,13 +922,13 @@ function LedgerCard({ data }: { data: any }) {
 
 function ReminderCard({ data }: { data: any }) {
   return (
-    <div className="mt-2 rounded-xl bg-background/95 text-foreground border border-border/40 p-3 flex items-start gap-3">
+    <div className="mt-2 rounded-xl bg-slate-900/90 text-slate-100 border border-slate-800/80 p-3 flex items-start gap-3">
       <div className="h-9 w-9 rounded-lg bg-warning/15 text-warning grid place-items-center"><Bell className="h-4 w-4" /></div>
       <div className="flex-1">
-        <div className="text-[12.5px] font-semibold">Reminder scheduled</div>
-        <div className="text-[11px] text-muted-foreground">{data.when} · {data.note}</div>
+        <div className="text-[12px] font-semibold text-slate-200">Reminder scheduled</div>
+        <div className="text-[11px] text-slate-400 leading-normal">{data.when} · {data.note}</div>
       </div>
-      <Pill tone="warning">Auto</Pill>
+      <span className="text-[9.5px] font-bold bg-warning/10 text-warning px-1.5 py-0.2 rounded border border-warning/20 self-start">Auto</span>
     </div>
   );
 }

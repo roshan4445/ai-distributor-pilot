@@ -215,16 +215,20 @@ export const getConversationsList = createServerFn({ method: "GET" }).handler(as
   for (const c of (conversations || [])) {
     const { data: msgs } = await supabase.from("messages").select("*").eq("conversationId", c.id);
     
-    // Sort messages locally or ensure they display correctly
-    const parsedMessages = (msgs || []).map(m => ({
-      id: String(m.id),
-      from: String(m.fromRole) as "dealer" | "ai" | "system",
-      text: m.text ? String(m.text) : undefined,
-      time: String(m.time),
-      kind: m.kind ? String(m.kind) : undefined,
-      data: m.data ? (typeof m.data === "string" ? JSON.parse(m.data) : m.data) : undefined,
-    }));
+    const parsedMessages = (msgs || [])
+      .filter(m => m.fromRole !== "system_memory")
+      .map(m => ({
+        id: String(m.id),
+        from: String(m.fromRole) as "dealer" | "ai" | "system",
+        text: m.text ? String(m.text) : undefined,
+        time: String(m.time),
+        kind: m.kind ? String(m.kind) : undefined,
+        data: m.data ? (typeof m.data === "string" ? JSON.parse(m.data) : m.data) : undefined,
+      }));
     
+    const memoryMsg = (msgs || []).find(m => m.fromRole === "system_memory");
+    const memory = memoryMsg?.data ? (typeof memoryMsg.data === "string" ? JSON.parse(memoryMsg.data) : memoryMsg.data) : null;
+
     list.push({
       id: String(c.id),
       dealer: String(c.dealer),
@@ -232,6 +236,7 @@ export const getConversationsList = createServerFn({ method: "GET" }).handler(as
       unread: Number(c.unread),
       preview: String(c.preview),
       messages: parsedMessages,
+      memory
     });
   }
   return list;
@@ -275,9 +280,10 @@ export const postMessage = createServerFn({ method: "POST" })
 
     try {
       const parsed = JSON.parse(aiReply.trim().replace(/^```json/, "").replace(/```$/, "").trim());
-      if (parsed.text) replyText = parsed.text;
-      if (parsed.kind) kind = parsed.kind;
-      if (parsed.data) dataObj = parsed.data;
+      replyText = parsed.response || parsed.text || aiReply;
+      kind = parsed.kind || null;
+      // Store the complete AgentResponse trace in the data field
+      dataObj = parsed;
     } catch (e) {
       // Fallback to raw text
     }

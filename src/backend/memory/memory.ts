@@ -1,3 +1,5 @@
+import { supabase } from "@/utils/supabase";
+
 export interface ConversationMemory {
   lastDealerId?: string;
   lastOrderId?: string;
@@ -10,34 +12,60 @@ export interface ConversationMemory {
   };
 }
 
-const memoryStore = new Map<string, ConversationMemory>();
+export async function getMemory(conversationId: string): Promise<ConversationMemory> {
+  try {
+    const { data } = await supabase
+      .from("messages")
+      .select("data")
+      .eq("id", `mem-${conversationId}`)
+      .maybeSingle();
 
-export function getMemory(conversationId: string): ConversationMemory {
-  if (!memoryStore.has(conversationId)) {
-    memoryStore.set(conversationId, {
-      recentConversation: []
-    });
+    if (data?.data) {
+      const parsed = typeof data.data === "string" ? JSON.parse(data.data) : data.data;
+      if (parsed) return parsed;
+    }
+  } catch (e) {
+    console.error("Failed to load persistent memory from database:", e);
   }
-  return memoryStore.get(conversationId)!;
+
+  return {
+    recentConversation: []
+  };
 }
 
-export function updateMemory(
+export async function updateMemory(
   conversationId: string,
   partial: Partial<ConversationMemory>
-): ConversationMemory {
-  const current = getMemory(conversationId);
+): Promise<ConversationMemory> {
+  const current = await getMemory(conversationId);
   const updated = {
     ...current,
     ...partial,
-    // Ensure we keep the conversation array clean if updating it
     recentConversation: partial.recentConversation !== undefined 
       ? partial.recentConversation.slice(-10) // Keep last 10 messages for context
       : current.recentConversation
   };
-  memoryStore.set(conversationId, updated);
+
+  try {
+    await supabase.from("messages").upsert({
+      id: `mem-${conversationId}`,
+      conversationId: conversationId,
+      fromRole: "system_memory",
+      text: "system_memory_state",
+      time: new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      data: JSON.stringify(updated)
+    });
+  } catch (e) {
+    console.error("Failed to persist memory to database:", e);
+  }
+
   return updated;
 }
 
-export function clearMemory(conversationId: string): void {
-  memoryStore.delete(conversationId);
+export async function clearMemory(conversationId: string): Promise<void> {
+  try {
+    await supabase.from("messages").delete().eq("id", `mem-${conversationId}`);
+  } catch (e) {
+    console.error("Failed to clear persistent memory from database:", e);
+  }
 }
