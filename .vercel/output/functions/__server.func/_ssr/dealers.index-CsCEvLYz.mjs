@@ -1,7 +1,7 @@
 import { m as createFileRoute, p as lazyRouteComponent } from "../_libs/@tanstack/react-router+[...].mjs";
-import { s as getDealers } from "./db-queries-DsP94wQJ.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/dealers.index-Nyp42FXz.js
-var $$splitComponentImporter = () => import("./dealers.index-jTIlFZV-.mjs");
+import { s as getDealers } from "./db-queries-CTsNh1Hc.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/dealers.index-CsCEvLYz.js
+var $$splitComponentImporter = () => import("./dealers.index-oQqKalPk.mjs");
 var Route = createFileRoute("/dealers/")({
 	loader: () => getDealers(),
 	head: () => ({ meta: [{ title: "Dealers — AI Distributor Copilot" }, {

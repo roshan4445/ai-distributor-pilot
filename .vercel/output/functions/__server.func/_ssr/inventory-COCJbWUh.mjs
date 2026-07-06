@@ -1,9 +1,9 @@
 import { m as createFileRoute, p as lazyRouteComponent } from "../_libs/@tanstack/react-router+[...].mjs";
-import { l as getInventory } from "./db-queries-DsP94wQJ.mjs";
+import { l as getInventory } from "./db-queries-CTsNh1Hc.mjs";
 import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/inventory-DY4ogwmq.js
+//#region node_modules/.nitro/vite/services/ssr/assets/inventory-COCJbWUh.js
 var import_jsx_runtime = require_jsx_runtime();
-var $$splitComponentImporter = () => import("./inventory-D2XcX1bg.mjs");
+var $$splitComponentImporter = () => import("./inventory-TCNyDAhp.mjs");
 var Route = createFileRoute("/inventory")({
 	loader: () => getInventory(),
 	head: () => ({ meta: [{ title: "Inventory — AI Distributor Copilot" }, {

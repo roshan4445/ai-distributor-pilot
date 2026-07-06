@@ -1,9 +1,9 @@
 import { M as notFound, m as createFileRoute, p as lazyRouteComponent } from "../_libs/@tanstack/react-router+[...].mjs";
-import { o as getDealerById } from "./db-queries-DsP94wQJ.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/dealers._id-C7XVvtWv.js
+import { o as getDealerById } from "./db-queries-CTsNh1Hc.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/dealers._id-BF6ZgebF.js
 var $$splitErrorComponentImporter = () => import("./dealers._id-BDkMArum.mjs");
 var $$splitNotFoundComponentImporter = () => import("./dealers._id-tiHYcWCU.mjs");
-var $$splitComponentImporter = () => import("./dealers._id-DUooQXa9.mjs");
+var $$splitComponentImporter = () => import("./dealers._id-DtEVmak3.mjs");
 var Route = createFileRoute("/dealers/$id")({
 	loader: async ({ params }) => {
 		const data = await getDealerById({ data: params.id });

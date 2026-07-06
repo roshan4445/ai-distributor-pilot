@@ -6,8 +6,8 @@ import { i as owner, r as fmt } from "./mock-data-qUJ_xzNA.mjs";
 import { t as motion } from "../_libs/motion.mjs";
 import { t as Pill } from "./badges-Cs8n-29R.mjs";
 import { a as XAxis, d as ResponsiveContainer, f as Tooltip, i as YAxis, l as Pie, n as PieChart, o as Area, s as CartesianGrid, t as AreaChart, u as Cell } from "../_libs/recharts+[...].mjs";
-import { t as Route } from "./routes-gGbLNEN0.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CEAGfArq.js
+import { t as Route } from "./routes-DQeMWEX4.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DzTBK-tr.js
 var import_jsx_runtime = require_jsx_runtime();
 var tintBg = {
 	primary: "bg-primary/10 text-primary",

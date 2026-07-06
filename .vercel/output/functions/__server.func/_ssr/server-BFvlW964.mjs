@@ -1,5 +1,5 @@
 import "../_runtime.mjs";
-import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-CMAL_08v.mjs";
+import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-BlwzJimZ.mjs";
 import { A as rootRouteId, C as getStylesheetHref, D as isRedirect, E as executeRewriteInput, O as isResolvedRedirect, P as invariant, S as getScriptPreloadAttrs, T as resolveManifestCssLink, a as replaceSsrResponse, i as normalizeSsrResponse, j as isNotFound, n as defineHandlerCallback, o as stripSsrResponseBody, r as isSsrResponse, t as renderRouterToStream, u as RouterProvider, w as resolveManifestAssetLink } from "../_libs/@tanstack/react-router+[...].mjs";
 import { n as createMemoryHistory } from "../_libs/tanstack__history.mjs";
 import { d as su, i as mergeHeaders, l as Pu, n as getNormalizedURL, o as createRawStreamRPCPlugin, r as getOrigin, s as createSerializationAdapter, t as attachRouterServerSsrUtils, u as iu } from "../_libs/@tanstack/router-core+[...].mjs";
@@ -1022,7 +1022,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-B7SrwtWr.mjs"),
+		import("./router-fTJdzeqr.mjs"),
 		import("./start-Ok9K6Nid.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

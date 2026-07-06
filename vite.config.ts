@@ -13,9 +13,19 @@ export default defineConfig({
     server: { entry: "server" },
   },
   nitro: {
-    preset: "vercel",
-    externals: {
-      inline: ["tslib"]
+    preset: "vercel"
+  },
+  vite: {
+    ssr: {
+      noExternal: [
+        "@supabase/supabase-js",
+        "@supabase/functions-js",
+        "@supabase/postgrest-js",
+        "@supabase/auth-js",
+        "@supabase/realtime-js",
+        "@supabase/storage-js",
+        "tslib"
+      ]
     }
   }
 });

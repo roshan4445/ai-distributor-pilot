@@ -1,15 +1,15 @@
 import { _ as useRouter, c as HeadContent, d as createRouter, f as Outlet, g as Link, h as createRootRouteWithContext, m as createFileRoute, p as lazyRouteComponent, s as Scripts } from "../_libs/@tanstack/react-router+[...].mjs";
 import { n as require_jsx_runtime, t as QueryClientProvider } from "../_libs/react+tanstack__react-query.mjs";
-import { t as Route$3 } from "./conversations-Byi_8Q7X.mjs";
-import { t as Route$4 } from "./dealers._id-C7XVvtWv.mjs";
-import { n as Route$5 } from "./inventory-DY4ogwmq.mjs";
-import { t as Route$6 } from "./dealers.index-Nyp42FXz.mjs";
-import { t as Route$7 } from "./dues-Dw7E2MAj.mjs";
-import { t as Route$8 } from "./invoices-D6Evpy1b.mjs";
-import { t as Route$9 } from "./orders-r7q20xcs.mjs";
-import { t as Route$10 } from "./routes-gGbLNEN0.mjs";
+import { t as Route$3 } from "./conversations-HBpMzK9O.mjs";
+import { t as Route$4 } from "./dealers._id-BF6ZgebF.mjs";
+import { n as Route$5 } from "./inventory-COCJbWUh.mjs";
+import { t as Route$6 } from "./dealers.index-CsCEvLYz.mjs";
+import { t as Route$7 } from "./dues-BefLd2tA.mjs";
+import { t as Route$8 } from "./invoices-rqWT8emH.mjs";
+import { t as Route$9 } from "./orders-qngBnfvK.mjs";
+import { t as Route$10 } from "./routes-DQeMWEX4.mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-B7SrwtWr.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-fTJdzeqr.js
 var import_jsx_runtime = require_jsx_runtime();
 var styles_default = "/assets/styles-fONdnSaf.css";
 function NotFoundComponent() {
@@ -165,7 +165,7 @@ function RootComponent() {
 }
 var $$splitComponentImporter$1 = () => import("./dealers-Cd7Gw3Or.mjs");
 var Route$1 = createFileRoute("/dealers")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
-var $$splitComponentImporter = () => import("./ask-BwrntcjN.mjs");
+var $$splitComponentImporter = () => import("./ask-C8YzveLJ.mjs");
 var Route = createFileRoute("/ask")({
 	head: () => ({ meta: [{ title: "Ask AI — AI Distributor Copilot" }, {
 		name: "description",
