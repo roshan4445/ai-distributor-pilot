@@ -9,38 +9,194 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as InvoicesRouteImport } from './routes/invoices'
+import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as DuesRouteImport } from './routes/dues'
+import { Route as DealersRouteImport } from './routes/dealers'
+import { Route as ConversationsRouteImport } from './routes/conversations'
+import { Route as AskRouteImport } from './routes/ask'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DealersIdRouteImport } from './routes/dealers.$id'
 
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesRoute = InvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DuesRoute = DuesRouteImport.update({
+  id: '/dues',
+  path: '/dues',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DealersRoute = DealersRouteImport.update({
+  id: '/dealers',
+  path: '/dealers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConversationsRoute = ConversationsRouteImport.update({
+  id: '/conversations',
+  path: '/conversations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AskRoute = AskRouteImport.update({
+  id: '/ask',
+  path: '/ask',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DealersIdRoute = DealersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => DealersRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ask': typeof AskRoute
+  '/conversations': typeof ConversationsRoute
+  '/dealers': typeof DealersRouteWithChildren
+  '/dues': typeof DuesRoute
+  '/inventory': typeof InventoryRoute
+  '/invoices': typeof InvoicesRoute
+  '/orders': typeof OrdersRoute
+  '/dealers/$id': typeof DealersIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ask': typeof AskRoute
+  '/conversations': typeof ConversationsRoute
+  '/dealers': typeof DealersRouteWithChildren
+  '/dues': typeof DuesRoute
+  '/inventory': typeof InventoryRoute
+  '/invoices': typeof InvoicesRoute
+  '/orders': typeof OrdersRoute
+  '/dealers/$id': typeof DealersIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ask': typeof AskRoute
+  '/conversations': typeof ConversationsRoute
+  '/dealers': typeof DealersRouteWithChildren
+  '/dues': typeof DuesRoute
+  '/inventory': typeof InventoryRoute
+  '/invoices': typeof InvoicesRoute
+  '/orders': typeof OrdersRoute
+  '/dealers/$id': typeof DealersIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/ask'
+    | '/conversations'
+    | '/dealers'
+    | '/dues'
+    | '/inventory'
+    | '/invoices'
+    | '/orders'
+    | '/dealers/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/ask'
+    | '/conversations'
+    | '/dealers'
+    | '/dues'
+    | '/inventory'
+    | '/invoices'
+    | '/orders'
+    | '/dealers/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/ask'
+    | '/conversations'
+    | '/dealers'
+    | '/dues'
+    | '/inventory'
+    | '/invoices'
+    | '/orders'
+    | '/dealers/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AskRoute: typeof AskRoute
+  ConversationsRoute: typeof ConversationsRoute
+  DealersRoute: typeof DealersRouteWithChildren
+  DuesRoute: typeof DuesRoute
+  InventoryRoute: typeof InventoryRoute
+  InvoicesRoute: typeof InvoicesRoute
+  OrdersRoute: typeof OrdersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices': {
+      id: '/invoices'
+      path: '/invoices'
+      fullPath: '/invoices'
+      preLoaderRoute: typeof InvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dues': {
+      id: '/dues'
+      path: '/dues'
+      fullPath: '/dues'
+      preLoaderRoute: typeof DuesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dealers': {
+      id: '/dealers'
+      path: '/dealers'
+      fullPath: '/dealers'
+      preLoaderRoute: typeof DealersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conversations': {
+      id: '/conversations'
+      path: '/conversations'
+      fullPath: '/conversations'
+      preLoaderRoute: typeof ConversationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ask': {
+      id: '/ask'
+      path: '/ask'
+      fullPath: '/ask'
+      preLoaderRoute: typeof AskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +204,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dealers/$id': {
+      id: '/dealers/$id'
+      path: '/$id'
+      fullPath: '/dealers/$id'
+      preLoaderRoute: typeof DealersIdRouteImport
+      parentRoute: typeof DealersRoute
+    }
   }
 }
 
+interface DealersRouteChildren {
+  DealersIdRoute: typeof DealersIdRoute
+}
+
+const DealersRouteChildren: DealersRouteChildren = {
+  DealersIdRoute: DealersIdRoute,
+}
+
+const DealersRouteWithChildren =
+  DealersRoute._addFileChildren(DealersRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AskRoute: AskRoute,
+  ConversationsRoute: ConversationsRoute,
+  DealersRoute: DealersRouteWithChildren,
+  DuesRoute: DuesRoute,
+  InventoryRoute: InventoryRoute,
+  InvoicesRoute: InvoicesRoute,
+  OrdersRoute: OrdersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
