@@ -599,3 +599,19 @@ export const createProductAction = createServerFn({ method: "POST" })
     }
     return inserted;
   });
+
+export const clearConversationAction = createServerFn({ method: "POST" })
+  .validator((data: { conversationId: string }) => data)
+  .handler(async ({ data }) => {
+    // 1. Delete all messages for this conversationId
+    await supabase.from("messages").delete().eq("conversationId", data.conversationId);
+
+    // 2. Clear conversation preview text
+    await supabase.from("conversations").update({
+      preview: "Chat cleared",
+      unread: 0
+    }).eq("id", data.conversationId);
+
+    return { success: true };
+  });
+

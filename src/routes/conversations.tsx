@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Search, Phone, Video, MoreVertical, Paperclip, Smile, Send, CheckCheck,
-  Sparkles, FileText, Package, Bell, Wallet, Loader2, X, ArrowRight
+  Sparkles, FileText, Package, Bell, Wallet, Loader2, X, ArrowRight, Trash2
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/badges";
 import { fmt, type ChatMsg } from "@/lib/mock-data";
-import { getConversationsList, getDealers, postMessage, getInvoiceDetailsAction } from "@/lib/db-queries";
+import { getConversationsList, getDealers, postMessage, getInvoiceDetailsAction, clearConversationAction } from "@/lib/db-queries";
 import { useRouter } from "@tanstack/react-router";
 import { AlertTriangle } from "lucide-react";
 
@@ -224,6 +224,20 @@ function ConversationsPage() {
     }
   };
 
+  const handleClearChat = async () => {
+    if (!confirm("Are you sure you want to clear the entire chat history and reset the AI agent's memory?")) return;
+    setIsSending(true);
+    try {
+      await clearConversationAction({ data: { conversationId: active.id } });
+      setLocalMessages([]);
+    } catch (err) {
+      console.error("Failed to clear chat:", err);
+    } finally {
+      await router.invalidate();
+      setIsSending(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="h-[calc(100vh-64px)] flex">
@@ -271,7 +285,17 @@ function ConversationsPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> Online • {active.city}
               </div>
             </div>
-            <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <button 
+                onClick={handleClearChat}
+                disabled={isSending}
+                className="h-9 px-3 rounded-lg hover:bg-destructive/10 hover:text-destructive flex items-center gap-1.5 text-[12.5px] font-semibold transition border border-border/50 hover:border-destructive/20 disabled:opacity-50 cursor-pointer"
+                title="Clear conversation history and reset memory"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear Chat
+              </button>
+              <span className="h-4 w-px bg-border mx-1" />
               <button className="h-9 w-9 rounded-lg hover:bg-secondary grid place-items-center"><Phone className="h-4 w-4" /></button>
               <button className="h-9 w-9 rounded-lg hover:bg-secondary grid place-items-center"><Video className="h-4 w-4" /></button>
               <button className="h-9 w-9 rounded-lg hover:bg-secondary grid place-items-center"><MoreVertical className="h-4 w-4" /></button>

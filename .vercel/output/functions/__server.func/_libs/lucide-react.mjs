@@ -745,6 +745,34 @@ var Sparkles = createLucideIcon("sparkles", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Trash2 = createLucideIcon("trash-2", [
+	["path", {
+		d: "M10 11v6",
+		key: "nco0om"
+	}],
+	["path", {
+		d: "M14 11v6",
+		key: "outv1u"
+	}],
+	["path", {
+		d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
+		key: "miytrc"
+	}],
+	["path", {
+		d: "M3 6h18",
+		key: "d0wm0j"
+	}],
+	["path", {
+		d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+		key: "e791ji"
+	}]
+]);
+/**
+* @license lucide-react v1.23.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var TrendingDown = createLucideIcon("trending-down", [["path", {
 	d: "M16 17h6v-6",
 	key: "t6n2it"
@@ -897,4 +925,4 @@ var Zap = createLucideIcon("zap", [["path", {
 	key: "1xq2db"
 }]]);
 //#endregion
-export { EllipsisVertical as A, ArrowLeft as B, MapPin as C, IndianRupee as D, LayoutDashboard as E, CheckCheck as F, Activity as H, Boxes as I, Bell as L, Clock as M, CircleCheck as N, Funnel as O, ChevronDown as P, ArrowUpRight as R, MessageCircle as S, Lightbulb as T, ArrowDownRight as V, PhoneCall as _, Users as a, PackageCheck as b, TrendingUp as c, Smile as d, ShoppingCart as f, Phone as g, Plus as h, Video as i, Download as j, FileText as k, TrendingDown as l, Search as m, X as n, Truck as o, Send as p, Wallet as r, TriangleAlert as s, Zap as t, Sparkles as u, Paperclip as v, LoaderCircle as w, MessageSquare as x, Package as y, ArrowRight as z };
+export { FileText as A, ArrowRight as B, MessageCircle as C, LayoutDashboard as D, Lightbulb as E, ChevronDown as F, ArrowDownRight as H, CheckCheck as I, Boxes as L, Download as M, Clock as N, IndianRupee as O, CircleCheck as P, Bell as R, MessageSquare as S, LoaderCircle as T, Activity as U, ArrowLeft as V, Phone as _, Users as a, Package as b, TrendingUp as c, Sparkles as d, Smile as f, Plus as g, Search as h, Video as i, EllipsisVertical as j, Funnel as k, TrendingDown as l, Send as m, X as n, Truck as o, ShoppingCart as p, Wallet as r, TriangleAlert as s, Zap as t, Trash2 as u, PhoneCall as v, MapPin as w, PackageCheck as x, Paperclip as y, ArrowUpRight as z };
