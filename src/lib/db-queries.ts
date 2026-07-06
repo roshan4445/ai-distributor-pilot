@@ -426,9 +426,17 @@ export const recordPaymentAction = createServerFn({ method: "POST" })
 export const askAiQuery = createServerFn({ method: "POST" })
   .validator((query: string) => query)
   .handler(async ({ data: q }) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey && apiKey !== "your_gemini_api_key_here") {
-      return await runAgentQuery(q);
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
+    
+    if ((geminiKey && geminiKey !== "your_gemini_api_key_here") || groqKey) {
+      const aiReply = await runAgentQuery(q);
+      try {
+        const parsed = JSON.parse(aiReply.trim().replace(/^```json/, "").replace(/```$/, "").trim());
+        return parsed.response || parsed.text || aiReply;
+      } catch (e) {
+        return aiReply;
+      }
     }
     
     const term = q.toLowerCase();
