@@ -5,6 +5,7 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import path from "node:path";
 
 export default defineConfig({
   tanstackStart: {
@@ -16,6 +17,11 @@ export default defineConfig({
     preset: "vercel"
   },
   vite: {
+    resolve: {
+      alias: {
+        tslib: path.resolve("src/utils/tslib-shim.js")
+      }
+    },
     ssr: {
       noExternal: [
         "@supabase/supabase-js",
@@ -23,7 +29,8 @@ export default defineConfig({
         "@supabase/postgrest-js",
         "@supabase/auth-js",
         "@supabase/realtime-js",
-        "@supabase/storage-js"
+        "@supabase/storage-js",
+        "tslib"
       ]
     }
   }

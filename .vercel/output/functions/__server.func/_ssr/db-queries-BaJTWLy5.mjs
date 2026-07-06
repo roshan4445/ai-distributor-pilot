@@ -6,8 +6,7 @@ import { t as GoogleGenAI } from "../_libs/@google/genai.mjs";
 import { t as require_main } from "../_libs/dotenv.mjs";
 import { t as ChatGroq } from "../_libs/groq-sdk+langchain__groq.mjs";
 import { A as enumType, M as objectType, N as stringType, O as anyType, b as HumanMessage, g as AIMessage, j as numberType, k as arrayType, n as ChatPromptTemplate, r as MessagesPlaceholder, t as tool } from "../_libs/@langchain/core+[...].mjs";
-import { __awaiter, __rest } from "tslib";
-//#region node_modules/.nitro/vite/services/ssr/assets/db-queries-l9A2W3YL.js
+//#region node_modules/.nitro/vite/services/ssr/assets/db-queries-BaJTWLy5.js
 var import_main = /* @__PURE__ */ __toESM(require_main());
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
@@ -17,6 +16,41 @@ var createServerRpc = (serverFnMeta, splitImportFn) => {
 		[TSS_SERVER_FUNCTION]: true
 	});
 };
+function __rest(s, e) {
+	var t = {};
+	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
+	if (s != null && typeof Object.getOwnPropertySymbols === "function") {
+		for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i])) t[p[i]] = s[p[i]];
+	}
+	return t;
+}
+function __awaiter$1(thisArg, _arguments, P, generator) {
+	function adopt(value) {
+		return value instanceof P ? value : new P(function(resolve) {
+			resolve(value);
+		});
+	}
+	return new (P || (P = Promise))(function(resolve, reject) {
+		function fulfilled(value) {
+			try {
+				step(generator.next(value));
+			} catch (e) {
+				reject(e);
+			}
+		}
+		function rejected(value) {
+			try {
+				step(generator["throw"](value));
+			} catch (e) {
+				reject(e);
+			}
+		}
+		function step(result) {
+			result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+		}
+		step((generator = generator.apply(thisArg, _arguments || [])).next());
+	});
+}
 var resolveFetch$3 = (customFetch) => {
 	if (customFetch) return (...args) => customFetch(...args);
 	return (...args) => fetch(...args);
@@ -283,7 +317,7 @@ var FunctionsClient = class {
 	* ```
 	*/
 	invoke(functionName_1) {
-		return __awaiter(this, arguments, void 0, function* (functionName, options = {}) {
+		return __awaiter$1(this, arguments, void 0, function* (functionName, options = {}) {
 			var _a;
 			let timeoutId;
 			let timeoutController;
@@ -17526,7 +17560,7 @@ var DEFAULT_TRACE_PROPAGATION_OPTIONS = {
 	enabled: false,
 	respectSamplingDecision: true
 };
-function __awaiter$1(thisArg, _arguments, P, generator) {
+function __awaiter(thisArg, _arguments, P, generator) {
 	function adopt(value) {
 		return value instanceof P ? value : new P(function(resolve) {
 			resolve(value);
@@ -17573,7 +17607,7 @@ function loadOtel() {
 * @returns Trace context with traceparent, tracestate, and baggage headers, or null if unavailable
 */
 function extractTraceContext() {
-	return __awaiter$1(this, void 0, void 0, function* () {
+	return __awaiter(this, void 0, void 0, function* () {
 		try {
 			const otel = yield loadOtel();
 			if (!otel || !otel.propagation || !otel.context) return null;
