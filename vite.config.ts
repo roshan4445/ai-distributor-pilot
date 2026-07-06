@@ -23,8 +23,7 @@ export default defineConfig({
         "@supabase/postgrest-js",
         "@supabase/auth-js",
         "@supabase/realtime-js",
-        "@supabase/storage-js",
-        "tslib"
+        "@supabase/storage-js"
       ]
     }
   }

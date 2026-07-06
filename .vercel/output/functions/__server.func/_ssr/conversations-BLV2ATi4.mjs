@@ -1,7 +1,7 @@
 import { m as createFileRoute, p as lazyRouteComponent } from "../_libs/@tanstack/react-router+[...].mjs";
-import { i as getConversationsList, s as getDealers } from "./db-queries-CTsNh1Hc.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/conversations-HBpMzK9O.js
-var $$splitComponentImporter = () => import("./conversations-DfPg5jbH.mjs");
+import { i as getConversationsList, s as getDealers } from "./db-queries-B6aRRcLS.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/conversations-BLV2ATi4.js
+var $$splitComponentImporter = () => import("./conversations-BiBvqMvv.mjs");
 var Route = createFileRoute("/conversations")({
 	loader: async () => {
 		return {

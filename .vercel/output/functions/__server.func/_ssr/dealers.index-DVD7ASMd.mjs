@@ -5,9 +5,9 @@ import { C as MapPin, R as ArrowUpRight, g as Phone, m as Search } from "../_lib
 import { t as AppShell } from "./app-shell-CdYrK2n7.mjs";
 import { r as fmt } from "./mock-data-qUJ_xzNA.mjs";
 import { t as Pill } from "./badges-Cs8n-29R.mjs";
-import { t as PageHeader } from "./inventory-COCJbWUh.mjs";
-import { t as Route } from "./dealers.index-CsCEvLYz.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/dealers.index-oQqKalPk.js
+import { t as PageHeader } from "./inventory-BLUwYBLE.mjs";
+import { t as Route } from "./dealers.index-BBOIMHAE.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/dealers.index-DVD7ASMd.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var statusTone = {
