@@ -33,7 +33,7 @@ function DealersPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-indigo-500 text-primary-foreground grid place-items-center text-[13px] font-bold">
-                    {d.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                    {d.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("")}
                   </div>
                   <div>
                     <div className="text-[15px] font-semibold tracking-tight group-hover:text-primary transition">{d.name}</div>

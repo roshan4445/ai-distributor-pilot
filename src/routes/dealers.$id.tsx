@@ -49,7 +49,7 @@ function DealerProfile() {
         <div className="card-surface p-6 md:p-7">
           <div className="flex flex-col md:flex-row md:items-start gap-6">
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-indigo-500 text-primary-foreground grid place-items-center text-[20px] font-bold shrink-0">
-              {d.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+              {d.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("")}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

@@ -132,7 +132,7 @@ function ConversationsPage() {
 }
 
 function Avatar({ name }: { name: string }) {
-  const initials = name.split(" ").map((w) => w[0]).slice(0, 2).join("");
+  const initials = name.split(" ").map((w: string) => w[0]).slice(0, 2).join("");
   return (
     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-indigo-500 text-primary-foreground grid place-items-center text-[12px] font-bold shrink-0">
       {initials}
