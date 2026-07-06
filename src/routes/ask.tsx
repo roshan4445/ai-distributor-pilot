@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, Send, ArrowUpRight, User, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { askAiSuggestions, askAiSeedChat } from "@/lib/mock-data";
+import { askAiQuery } from "@/lib/db-queries";
 
 export const Route = createFileRoute("/ask")({
   head: () => ({
@@ -22,34 +23,92 @@ const initial: Msg[] = [
   { id: "s1", role: "ai", text: askAiSeedChat[0].a },
 ];
 
-const canned: Record<string, string> = {
-  "Which products are running low?":
-    "3 SKUs are below their minimum right now:\n\n• MCB 32A Single Pole — 42 units (min 120) · Critical\n• 3-Pin Socket 16A — 96 units (min 300) · Low\n• Distribution Board 8-way — 34 units (min 40) · Watch\n\nDraft reorder for MCB 32A: 300 units @ ₹210 = ₹63,000 from Havells. Want me to send the PO?",
-  "How much revenue did we make today?":
-    "Today's revenue is ₹1,84,500 — up 18% vs last Sunday. Top contributors:\n\n• Sri Lakshmi Agencies — ₹62,400\n• ABC Electricals — ₹33,560\n• PowerTech Distributors — ₹28,900\n\nCollections today: ₹1,26,000 (68% of billed).",
-  "Which dealer should I follow up with today?":
-    "Raj Traders — highest priority.\n\n₹1,24,500 outstanding for 42 days, no payment promise, trust score dropped from 78 → 62 this quarter. Recommend a personal call before 12 PM.",
-  "Which dealer is most profitable this month?":
-    "ABC Electricals — ₹3.62L billed, ₹41k gross margin, 100% on-time payments. Safe to raise credit limit from ₹2L → ₹3.5L.",
-  "Forecast next week's cash collection.":
-    "Estimated collection next week: ₹6.4L – ₹7.1L\n\nDrivers: 4 scheduled promises (₹3.1L), typical weekly repeat orders from ABC & Sri Lakshmi (₹2.2L), and 2 partial payments due. Confidence: 82%.",
-};
+function formatMessage(text: string) {
+  const lines = text.split("\n");
+  const resultElements: React.ReactNode[] = [];
+  let inList = false;
+  let currentListItems: React.ReactNode[] = [];
+
+  const formatBold = (str: string) => {
+    const parts = str.split(/\*\*([^*]+)\*\*/g);
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        return <strong key={i} className="font-semibold text-foreground">{part}</strong>;
+      }
+      return part;
+    });
+  };
+
+  lines.forEach((line, idx) => {
+    const cleanLine = line.trim();
+    if (!cleanLine) {
+      if (inList) {
+        resultElements.push(
+          <ul key={`list-${idx}`} className="list-disc pl-5 my-2 space-y-1.5">
+            {currentListItems}
+          </ul>
+        );
+        currentListItems = [];
+        inList = false;
+      }
+      resultElements.push(<div key={`br-${idx}`} className="h-1.5" />);
+      return;
+    }
+
+    const listMatch = line.match(/^[\*\-]\s+(.*)$/);
+    if (listMatch) {
+      inList = true;
+      currentListItems.push(
+        <li key={`li-${idx}`} className="text-[13.5px] leading-relaxed text-muted-foreground pl-0.5">
+          {formatBold(listMatch[1])}
+        </li>
+      );
+    } else {
+      if (inList) {
+        resultElements.push(
+          <ul key={`list-${idx}`} className="list-disc pl-5 my-2 space-y-1.5">
+            {currentListItems}
+          </ul>
+        );
+        currentListItems = [];
+        inList = false;
+      }
+      resultElements.push(
+        <p key={`p-${idx}`} className="text-[13.5px] leading-relaxed my-1">
+          {formatBold(line)}
+        </p>
+      );
+    }
+  });
+
+  if (inList && currentListItems.length > 0) {
+    resultElements.push(
+      <ul key="list-final" className="list-disc pl-5 my-2 space-y-1.5">
+        {currentListItems}
+      </ul>
+    );
+  }
+
+  return resultElements;
+}
 
 function AskAiPage() {
   const [messages, setMessages] = useState<Msg[]>(initial);
   const [input, setInput] = useState("");
 
-  const send = (raw?: string) => {
+  const send = async (raw?: string) => {
     const q = (raw ?? input).trim();
     if (!q) return;
     const uid = crypto.randomUUID();
     const aid = crypto.randomUUID();
     setMessages((m) => [...m, { id: uid, role: "user", text: q }, { id: aid, role: "ai", text: "", thinking: true }]);
     setInput("");
-    setTimeout(() => {
-      const answer = canned[q] ?? "Here's what I found based on your live data — I've cross-checked dealer ledgers, WhatsApp threads and inventory levels. Ask me for a deeper breakdown any time.";
+    try {
+      const answer = await askAiQuery({ data: q });
       setMessages((m) => m.map((x) => x.id === aid ? { ...x, text: answer, thinking: false } : x));
-    }, 900);
+    } catch (e) {
+      setMessages((m) => m.map((x) => x.id === aid ? { ...x, text: "Sorry, I had trouble reading the database. Please try again.", thinking: false } : x));
+    }
   };
 
   return (
@@ -85,12 +144,14 @@ function AskAiPage() {
                     ) : (
                       <div className="flex items-start gap-3">
                         <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground grid place-items-center shrink-0"><Sparkles className="h-4 w-4" /></div>
-                        <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-surface-2 border border-border px-4 py-3 text-[13.5px] leading-relaxed whitespace-pre-line">
+                        <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-surface-2 border border-border px-4 py-3 text-[13.5px] leading-relaxed">
                           {m.thinking ? (
                             <span className="inline-flex items-center gap-2 text-muted-foreground">
                               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking through your ledgers…
                             </span>
-                          ) : m.text}
+                          ) : (
+                            <div className="space-y-1">{formatMessage(m.text)}</div>
+                          )}
                         </div>
                       </div>
                     )}

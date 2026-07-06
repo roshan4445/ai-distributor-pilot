@@ -17,6 +17,7 @@ import { Route as DealersRouteImport } from './routes/dealers'
 import { Route as ConversationsRouteImport } from './routes/conversations'
 import { Route as AskRouteImport } from './routes/ask'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DealersIndexRouteImport } from './routes/dealers.index'
 import { Route as DealersIdRouteImport } from './routes/dealers.$id'
 
 const OrdersRoute = OrdersRouteImport.update({
@@ -59,6 +60,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DealersIndexRoute = DealersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DealersRoute,
+} as any)
 const DealersIdRoute = DealersIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -75,17 +81,18 @@ export interface FileRoutesByFullPath {
   '/invoices': typeof InvoicesRoute
   '/orders': typeof OrdersRoute
   '/dealers/$id': typeof DealersIdRoute
+  '/dealers/': typeof DealersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ask': typeof AskRoute
   '/conversations': typeof ConversationsRoute
-  '/dealers': typeof DealersRouteWithChildren
   '/dues': typeof DuesRoute
   '/inventory': typeof InventoryRoute
   '/invoices': typeof InvoicesRoute
   '/orders': typeof OrdersRoute
   '/dealers/$id': typeof DealersIdRoute
+  '/dealers': typeof DealersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +105,7 @@ export interface FileRoutesById {
   '/invoices': typeof InvoicesRoute
   '/orders': typeof OrdersRoute
   '/dealers/$id': typeof DealersIdRoute
+  '/dealers/': typeof DealersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,17 +119,18 @@ export interface FileRouteTypes {
     | '/invoices'
     | '/orders'
     | '/dealers/$id'
+    | '/dealers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/ask'
     | '/conversations'
-    | '/dealers'
     | '/dues'
     | '/inventory'
     | '/invoices'
     | '/orders'
     | '/dealers/$id'
+    | '/dealers'
   id:
     | '__root__'
     | '/'
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/invoices'
     | '/orders'
     | '/dealers/$id'
+    | '/dealers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -204,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dealers/': {
+      id: '/dealers/'
+      path: '/'
+      fullPath: '/dealers/'
+      preLoaderRoute: typeof DealersIndexRouteImport
+      parentRoute: typeof DealersRoute
+    }
     '/dealers/$id': {
       id: '/dealers/$id'
       path: '/$id'
@@ -216,10 +233,12 @@ declare module '@tanstack/react-router' {
 
 interface DealersRouteChildren {
   DealersIdRoute: typeof DealersIdRoute
+  DealersIndexRoute: typeof DealersIndexRoute
 }
 
 const DealersRouteChildren: DealersRouteChildren = {
   DealersIdRoute: DealersIdRoute,
+  DealersIndexRoute: DealersIndexRoute,
 }
 
 const DealersRouteWithChildren =

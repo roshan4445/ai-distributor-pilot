@@ -9,11 +9,11 @@ import {
 } from "recharts";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/badges";
-import {
-  owner, kpis, revenueTrend, categoryMix, insights, activity, fmt,
-} from "@/lib/mock-data";
+import { owner, fmt } from "@/lib/mock-data";
+import { getDashboardData } from "@/lib/db-queries";
 
 export const Route = createFileRoute("/")({
+  loader: () => getDashboardData(),
   head: () => ({
     meta: [
       { title: "Mission Control — AI Distributor Copilot" },
@@ -24,16 +24,6 @@ export const Route = createFileRoute("/")({
   }),
   component: MissionControl,
 });
-
-const kpiCards = [
-  { key: "orders", label: "Today's Orders", value: kpis.ordersToday, delta: kpis.ordersDelta, up: true, icon: ShoppingCart, tint: "primary" as const },
-  { key: "rev", label: "Today's Revenue", value: fmt(kpis.revenueToday), delta: kpis.revenueDelta, up: true, icon: IndianRupee, tint: "success" as const },
-  { key: "dues", label: "Pending Dues", value: fmt(kpis.pendingDues), delta: kpis.duesDelta, up: false, icon: Wallet, tint: "danger" as const },
-  { key: "inv", label: "Inventory Alerts", value: kpis.inventoryAlerts, delta: "3 critical", up: false, icon: Package, tint: "warning" as const },
-  { key: "invc", label: "Invoices Generated", value: kpis.invoicesGenerated, delta: "auto", up: true, icon: FileText, tint: "info" as const },
-  { key: "fu", label: "Dealer Follow-ups", value: kpis.followUps, delta: "AI-scheduled", up: true, icon: Bell, tint: "primary" as const },
-  { key: "col", label: "Collections Today", value: fmt(kpis.collectionsToday), delta: "+22%", up: true, icon: CheckCircle2, tint: "success" as const },
-];
 
 const tintBg: Record<string, string> = {
   primary: "bg-primary/10 text-primary",
@@ -71,6 +61,17 @@ const activityIcon: Record<string, any> = {
 const CHART_COLORS = ["#2563EB", "#7c3aed", "#0ea5e9", "#22c55e", "#f59e0b"];
 
 function MissionControl() {
+  const { kpis, revenueTrend, categoryMix, insights, activity } = Route.useLoaderData();
+
+  const kpiCards = [
+    { key: "orders", label: "Today's Orders", value: kpis.ordersToday, delta: kpis.ordersDelta, up: true, icon: ShoppingCart, tint: "primary" as const },
+    { key: "rev", label: "Today's Revenue", value: fmt(kpis.revenueToday), delta: kpis.revenueDelta, up: true, icon: IndianRupee, tint: "success" as const },
+    { key: "dues", label: "Pending Dues", value: fmt(kpis.pendingDues), delta: kpis.duesDelta, up: false, icon: Wallet, tint: "danger" as const },
+    { key: "inv", label: "Inventory Alerts", value: kpis.inventoryAlerts, delta: "3 critical", up: false, icon: Package, tint: "warning" as const },
+    { key: "invc", label: "Invoices Generated", value: kpis.invoicesGenerated, delta: "auto", up: true, icon: FileText, tint: "info" as const },
+    { key: "fu", label: "Dealer Follow-ups", value: kpis.followUps, delta: "AI-scheduled", up: true, icon: Bell, tint: "primary" as const },
+    { key: "col", label: "Collections Today", value: fmt(kpis.collectionsToday), delta: "+22%", up: true, icon: CheckCircle2, tint: "success" as const },
+  ];
   return (
     <AppShell>
       <div className="px-5 md:px-8 py-8 max-w-[1400px] mx-auto space-y-8">

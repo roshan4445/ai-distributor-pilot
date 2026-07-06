@@ -3,9 +3,12 @@ import { Download, FileText, Search } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/badges";
 import { PageHeader } from "./inventory";
-import { invoices, fmt } from "@/lib/mock-data";
+import { fmt } from "@/lib/mock-data";
+import { getInvoices } from "@/lib/db-queries";
+import { useState } from "react";
 
 export const Route = createFileRoute("/invoices")({
+  loader: () => getInvoices(),
   head: () => ({
     meta: [
       { title: "Invoices — AI Distributor Copilot" },
@@ -23,6 +26,22 @@ const statusLabel: any = {
 };
 
 function InvoicesPage() {
+  const invoices = Route.useLoaderData();
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("All");
+
+  const filtered = invoices.filter((inv) => {
+    const matchesSearch =
+      inv.id.toLowerCase().includes(search.toLowerCase()) ||
+      inv.dealer.toLowerCase().includes(search.toLowerCase());
+
+    const matchesFilter =
+      filter === "All" ||
+      inv.status.toLowerCase() === filter.toLowerCase();
+
+    return matchesSearch && matchesFilter;
+  });
+
   return (
     <AppShell>
       <div className="px-5 md:px-8 py-8 max-w-[1400px] mx-auto space-y-6">
@@ -31,17 +50,35 @@ function InvoicesPage() {
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input placeholder="Search invoice or dealer…" className="w-full h-10 pl-9 pr-3 rounded-xl bg-secondary text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search invoice or dealer…"
+              className="w-full h-10 pl-9 pr-3 rounded-xl bg-secondary text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
           </div>
           <div className="hidden md:flex gap-2">
-            {["All", "Paid", "Unpaid", "Overdue"].map((t, i) => (
-              <button key={t} className={`h-9 px-3 rounded-lg text-[12.5px] font-semibold border transition ${i === 0 ? "bg-foreground text-background border-foreground" : "border-border hover:bg-secondary"}`}>{t}</button>
-            ))}
+            {["All", "Paid", "Unpaid", "Overdue"].map((t) => {
+              const active = filter === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setFilter(t)}
+                  className={`h-9 px-3 rounded-lg text-[12.5px] font-semibold border transition ${
+                    active
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border hover:bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {t}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {invoices.map((inv) => (
+          {filtered.map((inv) => (
             <div key={inv.id} className="card-surface p-5 hover:shadow-elevate transition">
               <div className="flex items-start justify-between">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary grid place-items-center">

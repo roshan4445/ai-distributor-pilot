@@ -4,14 +4,15 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/badges";
-import { dealers, orders, invoices, conversations, fmt } from "@/lib/mock-data";
+import { fmt } from "@/lib/mock-data";
+import { getDealerById } from "@/lib/db-queries";
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, CartesianGrid } from "recharts";
 
 export const Route = createFileRoute("/dealers/$id")({
-  loader: ({ params }) => {
-    const d = dealers.find((x) => x.id === params.id);
-    if (!d) throw notFound();
-    return { dealer: d };
+  loader: async ({ params }) => {
+    const data = await getDealerById({ data: params.id });
+    if (!data) throw notFound();
+    return data;
   },
   head: ({ loaderData }) => ({
     meta: [{
@@ -33,10 +34,7 @@ const trend = [
 ];
 
 function DealerProfile() {
-  const { dealer: d } = Route.useLoaderData();
-  const dOrders = orders.filter((o) => o.dealerId === d.id);
-  const dInvoices = invoices.filter((i) => i.dealer === d.name);
-  const chat = conversations.find((c) => c.dealer === d.name);
+  const { dealer: d, orders: dOrders, invoices: dInvoices, chat } = Route.useLoaderData();
 
   return (
     <AppShell>

@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PhoneCall, MessageCircle, AlertTriangle, TrendingUp, Wallet } from "lucide-react";
+import { useState, useEffect } from "react";
+import { PhoneCall, MessageCircle, AlertTriangle, TrendingUp, Wallet, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/badges";
 import { PageHeader } from "./inventory";
-import { dues, fmt } from "@/lib/mock-data";
+import { fmt } from "@/lib/mock-data";
+import { getDues, getAiDuesAnalysis } from "@/lib/db-queries";
 
 export const Route = createFileRoute("/dues")({
+  loader: () => getDues(),
   head: () => ({
     meta: [
       { title: "Outstanding Dues — AI Distributor Copilot" },
@@ -19,13 +22,56 @@ const riskTone = (r: number) => r >= 70 ? "danger" : r >= 40 ? "warning" : "succ
 const riskLabel = (r: number) => r >= 70 ? "High" : r >= 40 ? "Medium" : "Low";
 
 function DuesPage() {
+  const initialDues = Route.useLoaderData();
+  const [dues, setDues] = useState(initialDues);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  useEffect(() => {
+    setIsAnalyzing(true);
+    getAiDuesAnalysis({ data: initialDues })
+      .then((aiResults) => {
+        if (aiResults && aiResults.length > 0) {
+          setDues((currentDues) =>
+            currentDues.map((d) => {
+              const aiItem = aiResults.find((x) => x.dealerId === d.dealerId);
+              if (aiItem) {
+                return {
+                  ...d,
+                  risk: Number(aiItem.risk),
+                  action: aiItem.action,
+                  promise: aiItem.promise || d.promise,
+                };
+              }
+              return d;
+            })
+          );
+        }
+      })
+      .catch((err) => console.error("Error loading AI dues analysis:", err))
+      .finally(() => setIsAnalyzing(false));
+  }, [initialDues]);
+
   const total = dues.reduce((s, d) => s + d.pending, 0);
   const critical = dues.filter((d) => d.overdueDays > 30).length;
 
   return (
     <AppShell>
       <div className="px-5 md:px-8 py-8 max-w-[1400px] mx-auto space-y-6">
-        <PageHeader eyebrow="Dues" title="Outstanding dealers" subtitle="AI-prioritised by risk, overdue days and payment behaviour" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-4">
+          <PageHeader eyebrow="Dues" title="Outstanding dealers" subtitle="AI-prioritised by risk, overdue days and payment behaviour" />
+          {isAnalyzing && (
+            <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full h-fit animate-pulse">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>AI Copilot auditing risk...</span>
+            </div>
+          )}
+          {!isAnalyzing && (
+            <div className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-success bg-success/10 border border-success/20 px-3 py-1.5 rounded-full h-fit">
+              <div className="h-1.5 w-1.5 rounded-full bg-success animate-ping" />
+              <span>AI Audit active</span>
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div className="card-surface p-5">
@@ -44,6 +90,7 @@ function DuesPage() {
             <div className="text-[11.5px] text-muted-foreground">last 30 days</div>
           </div>
         </div>
+
 
         <div className="card-surface overflow-hidden">
           <div className="overflow-x-auto">
