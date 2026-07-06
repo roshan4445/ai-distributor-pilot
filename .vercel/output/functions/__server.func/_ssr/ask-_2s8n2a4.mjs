@@ -1,12 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
-import { t as askAiQuery } from "./db-queries-wsbylqH9.mjs";
+import { t as askAiQuery } from "./db-queries-D3jRyzSM.mjs";
 import { n as require_jsx_runtime, r as require_react } from "../_libs/react+tanstack__react-query.mjs";
 import { R as ArrowUpRight, p as Send, u as Sparkles, w as LoaderCircle } from "../_libs/lucide-react.mjs";
 import { t as AppShell } from "./app-shell-CdYrK2n7.mjs";
 import { n as askAiSuggestions, t as askAiSeedChat } from "./mock-data-qUJ_xzNA.mjs";
 import { n as AnimatePresence } from "../_libs/framer-motion.mjs";
 import { t as motion } from "../_libs/motion.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/ask-TNQwIOcR.js
+//#region node_modules/.nitro/vite/services/ssr/assets/ask-_2s8n2a4.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var initial = [{

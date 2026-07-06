@@ -5,7 +5,7 @@ import { t as GoogleGenAI } from "../_libs/@google/genai.mjs";
 import { t as require_main } from "../_libs/dotenv.mjs";
 import { t as ChatGroq } from "../_libs/groq-sdk+langchain__groq.mjs";
 import { A as enumType, M as objectType, N as stringType, O as anyType, b as HumanMessage, g as AIMessage, j as numberType, k as arrayType, n as ChatPromptTemplate, r as MessagesPlaceholder, t as tool } from "../_libs/@langchain/core+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/db-queries-D4B582sP.js
+//#region node_modules/.nitro/vite/services/ssr/assets/db-queries-DiAALTpa.js
 var import_main = /* @__PURE__ */ __toESM(require_main());
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
@@ -475,24 +475,27 @@ Output a strict structured JSON matching the provided schema.`;
 	let agentOutput = null;
 	const apiKey = process.env.GROQ_API_KEY || (process.env.GEMINI_API_KEY?.startsWith("gsk_") ? process.env.GEMINI_API_KEY : void 0);
 	transitionTo("THINKING");
-	if (apiKey) try {
-		const model = new ChatGroq({
-			apiKey,
-			modelName: "llama-3.3-70b-versatile",
-			temperature: .1
-		}).withStructuredOutput(agentOutputSchema);
-		const prompt = ChatPromptTemplate.fromMessages([
-			["system", systemInstruction],
-			new MessagesPlaceholder("history"),
-			["user", "{input}"]
-		]);
-		const historyMessages = sessionMemory.recentConversation.map((c) => c.role === "user" ? new HumanMessage(c.text) : new AIMessage(c.text));
-		agentOutput = await prompt.pipe(model).invoke({
-			input: text,
-			history: historyMessages
-		});
-	} catch (err) {
-		console.warn("LangChain LLM invoke failed. Falling back to local rules engine.", err);
+	if (apiKey) {
+		process.env.GROQ_API_KEY = apiKey;
+		try {
+			const model = new ChatGroq({
+				apiKey,
+				modelName: "llama-3.3-70b-versatile",
+				temperature: .1
+			}).withStructuredOutput(agentOutputSchema);
+			const prompt = ChatPromptTemplate.fromMessages([
+				["system", systemInstruction],
+				new MessagesPlaceholder("history"),
+				["user", "{input}"]
+			]);
+			const historyMessages = sessionMemory.recentConversation.map((c) => c.role === "user" ? new HumanMessage(c.text) : new AIMessage(c.text));
+			agentOutput = await prompt.pipe(model).invoke({
+				input: text,
+				history: historyMessages
+			});
+		} catch (err) {
+			console.warn("LangChain LLM invoke failed. Falling back to local rules engine.", err);
+		}
 	}
 	if (!agentOutput) {
 		const rawFallback = await runFallbackRulesEngine(text, productsList, dealersList, invoicesList, ordersList, conversationId);

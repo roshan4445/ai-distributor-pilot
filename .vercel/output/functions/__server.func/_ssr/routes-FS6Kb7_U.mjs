@@ -1,7 +1,7 @@
 import { m as createFileRoute, p as lazyRouteComponent } from "../_libs/@tanstack/react-router+[...].mjs";
-import { a as getDashboardData } from "./db-queries-wsbylqH9.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DN7x97ET.js
-var $$splitComponentImporter = () => import("./routes-cDGcUbok.mjs");
+import { a as getDashboardData } from "./db-queries-D3jRyzSM.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-FS6Kb7_U.js
+var $$splitComponentImporter = () => import("./routes-BLeWmLv3.mjs");
 var Route = createFileRoute("/")({
 	loader: () => getDashboardData(),
 	head: () => ({ meta: [

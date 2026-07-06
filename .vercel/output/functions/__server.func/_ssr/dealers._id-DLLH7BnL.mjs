@@ -4,9 +4,9 @@ import { B as ArrowLeft, C as MapPin, c as TrendingUp, f as ShoppingCart, g as P
 import { t as AppShell } from "./app-shell-CdYrK2n7.mjs";
 import { r as fmt } from "./mock-data-qUJ_xzNA.mjs";
 import { t as Pill } from "./badges-Cs8n-29R.mjs";
-import { t as Route } from "./dealers._id-DHWbXVwa.mjs";
+import { t as Route } from "./dealers._id-eOrsgMi1.mjs";
 import { a as XAxis, c as Bar, d as ResponsiveContainer, f as Tooltip, r as BarChart, s as CartesianGrid } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/dealers._id-Djk6UK2w.js
+//#region node_modules/.nitro/vite/services/ssr/assets/dealers._id-DLLH7BnL.js
 var import_jsx_runtime = require_jsx_runtime();
 var trend = [
 	{

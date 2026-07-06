@@ -1,7 +1,7 @@
 import { m as createFileRoute, p as lazyRouteComponent } from "../_libs/@tanstack/react-router+[...].mjs";
-import { d as getInvoices } from "./db-queries-wsbylqH9.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/invoices-Bmv6IFum.js
-var $$splitComponentImporter = () => import("./invoices-CKINOOMR.mjs");
+import { d as getInvoices } from "./db-queries-D3jRyzSM.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/invoices-qjm04ejy.js
+var $$splitComponentImporter = () => import("./invoices-CGCrWFCK.mjs");
 var Route = createFileRoute("/invoices")({
 	loader: () => getInvoices(),
 	head: () => ({ meta: [{ title: "Invoices — AI Distributor Copilot" }, {

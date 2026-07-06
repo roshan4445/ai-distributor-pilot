@@ -4,9 +4,9 @@ import { j as Download, k as FileText, m as Search } from "../_libs/lucide-react
 import { t as AppShell } from "./app-shell-CdYrK2n7.mjs";
 import { r as fmt } from "./mock-data-qUJ_xzNA.mjs";
 import { t as Pill } from "./badges-Cs8n-29R.mjs";
-import { t as PageHeader } from "./inventory-BE8Dv2yx.mjs";
-import { t as Route } from "./invoices-Bmv6IFum.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/invoices-CKINOOMR.js
+import { t as PageHeader } from "./inventory-B9E3uGnk.mjs";
+import { t as Route } from "./invoices-qjm04ejy.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/invoices-CGCrWFCK.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var statusTone = {

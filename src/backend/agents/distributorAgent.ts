@@ -332,6 +332,7 @@ Output a strict structured JSON matching the provided schema.`;
   transitionTo("THINKING");
 
   if (apiKey) {
+    process.env.GROQ_API_KEY = apiKey;
     try {
       // LangChain LLM Sequence (LCEL) Setup
       const model = new ChatGroq({

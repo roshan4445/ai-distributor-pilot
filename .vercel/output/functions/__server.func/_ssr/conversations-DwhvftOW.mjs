@@ -1,15 +1,15 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { _ as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
-import { p as postMessage, u as getInvoiceDetailsAction } from "./db-queries-wsbylqH9.mjs";
+import { p as postMessage, u as getInvoiceDetailsAction } from "./db-queries-D3jRyzSM.mjs";
 import { n as require_jsx_runtime, r as require_react } from "../_libs/react+tanstack__react-query.mjs";
 import { A as EllipsisVertical, F as CheckCheck, L as Bell, d as Smile, g as Phone, i as Video, k as FileText, m as Search, n as X, p as Send, r as Wallet, s as TriangleAlert, u as Sparkles, v as Paperclip, w as LoaderCircle, y as Package, z as ArrowRight } from "../_libs/lucide-react.mjs";
 import { t as AppShell } from "./app-shell-CdYrK2n7.mjs";
 import { r as fmt } from "./mock-data-qUJ_xzNA.mjs";
 import { n as AnimatePresence } from "../_libs/framer-motion.mjs";
 import { t as motion } from "../_libs/motion.mjs";
-import { t as Route } from "./conversations-BxReruzA.mjs";
+import { t as Route } from "./conversations-D6mgKmmJ.mjs";
 import { t as Pill } from "./badges-Cs8n-29R.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/conversations-CqqApGHr.js
+//#region node_modules/.nitro/vite/services/ssr/assets/conversations-DwhvftOW.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function formatMessage(text) {
