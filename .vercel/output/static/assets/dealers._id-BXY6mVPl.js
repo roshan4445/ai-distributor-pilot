@@ -1,0 +1,1 @@
+import{c as e}from"./useStore-ODSqdEii.js";import{t}from"./app-shell-Ur5-HNwm.js";var n=e(),r=()=>(0,n.jsx)(t,{children:(0,n.jsx)(`div`,{className:`p-8 text-muted-foreground`,children:`Dealer not found.`})});export{r as notFoundComponent};

@@ -1,0 +1,1 @@
+import{c as e}from"./useStore-ODSqdEii.js";import{t}from"./app-shell-Ur5-HNwm.js";var n=e(),r=()=>(0,n.jsx)(t,{children:(0,n.jsx)(`div`,{className:`p-8 text-destructive`,children:`Couldn't load dealer.`})});export{r as errorComponent};
