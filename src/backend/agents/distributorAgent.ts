@@ -97,6 +97,34 @@ async function resolveDealerId(
   throw new Error(`Could not resolve dealer context for conversationId: "${conversationId}" and dealerName: "${dealerName}"`);
 }
 
+function calculateDueDate(whenStr?: string): string {
+  try {
+    if (!whenStr) {
+      return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    const clean = whenStr.toLowerCase();
+    if (clean.includes("tomorrow")) {
+      return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    }
+    if (clean.includes("diwali") || clean.includes("nov 5")) {
+      return new Date("2026-11-05T10:00:00.000Z").toISOString();
+    }
+    if (clean.includes("dussehra") || clean.includes("dusheera")) {
+      return new Date("2026-10-20T10:00:00.000Z").toISOString();
+    }
+    
+    // Attempt standard JS Date parsing
+    const parsed = Date.parse(whenStr);
+    if (!isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+    
+    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  } catch (err) {
+    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  }
+}
+
 export async function processAgentRequest(
   text: string,
   conversationId: string,
@@ -881,7 +909,14 @@ Output a strict structured JSON matching the provided schema.`;
     // Backward compatibility keys
     text: responseText,
     kind,
-    data: data ? { ...data, invoice: createdInvoiceId || data.invoice || sessionMemory.lastInvoiceId } : null
+    data: kind === "reminder" ? {
+      when: data?.when || params?.reminderWhen || "Nov 5, 10:00 AM",
+      note: data?.note || params?.reminderNote || "Collections payment follow up",
+      status: "pending",
+      dealerId,
+      conversationId,
+      dueDate: calculateDueDate(data?.when || params?.reminderWhen || "Nov 5, 10:00 AM")
+    } : (data ? { ...data, invoice: createdInvoiceId || data.invoice || sessionMemory.lastInvoiceId } : null)
   };
 
   // Observability trace logs print output
@@ -1091,14 +1126,22 @@ async function runFallbackRulesEngine(
   if (lower.includes("diwali") || lower.includes("dusheera") || lower.includes("dussehra") || lower.includes("promise") || lower.includes("will pay") || lower.includes("pay after") || lower.includes("pay later")) {
     const dealer = dealers.find(d => d.id === dealerId) || dealers[0];
     const pendingAmount = dealer ? dealer.pending : 124500;
+    const whenStr = lower.includes("diwali") ? "Nov 5, 10:00 AM" : (lower.includes("tomorrow") ? "Tomorrow, 10:00 AM" : "7 days");
     
     return JSON.stringify({
       intent: "PAYMENT_PROMISE",
       confidence: 0.95,
-      toolsUsed: [],
+      toolsUsed: ["scheduleReminder"],
+      toolParameters: {
+        reminderWhen: whenStr,
+        reminderNote: `Gentle dues nudge for outstanding ₹${pendingAmount}`
+      },
       response: `Understood sir. I have registered your payment promise for the remaining balance of **₹${pendingAmount.toLocaleString("en-IN")}**. A reminder has been set.`,
-      kind: "text",
-      data: null
+      kind: "reminder",
+      data: {
+        when: whenStr,
+        note: `Gentle dues nudge for outstanding ₹${pendingAmount}`
+      }
     });
   }
 

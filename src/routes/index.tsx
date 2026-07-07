@@ -3,11 +3,13 @@ import { lazy, Suspense, useState, useEffect } from "react";
 import {
   ArrowUpRight, ArrowDownRight, Sparkles, AlertTriangle, TrendingUp, Lightbulb,
   ShoppingCart, FileText, Package, Bell, Wallet, IndianRupee, CheckCircle2, PhoneCall,
+  Loader2
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/badges";
 import { owner, fmt } from "@/lib/mock-data";
-import { getDashboardData } from "@/lib/db-queries";
+import { getDashboardData, runCronAction } from "@/lib/db-queries";
+import { toast } from "sonner";
 
 const DashboardCharts = lazy(() => import("@/components/dashboard-charts"));
 
@@ -85,10 +87,29 @@ const activityIcon: Record<string, any> = {
 function MissionControl() {
   const { kpis, revenueTrend, categoryMix, insights, activity } = Route.useLoaderData();
   const [isClient, setIsClient] = useState(false);
+  const [isCronRunning, setIsCronRunning] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const handleTriggerCron = async () => {
+    if (isCronRunning) return;
+    setIsCronRunning(true);
+    const toastId = toast.loading("Executing overnight AI reminders cron...");
+    try {
+      const result = await runCronAction({ forceAll: true });
+      if (result.success) {
+        toast.success(`AI Cron completed! Sent ${result.processedCount} payment reminders successfully.`, { id: toastId });
+      } else {
+        toast.error(`AI Cron failed: ${result.error}`, { id: toastId });
+      }
+    } catch (err) {
+      toast.error(`AI Cron failed to execute: ${String(err)}`, { id: toastId });
+    } finally {
+      setIsCronRunning(false);
+    }
+  };
 
   const kpiCards = [
     { key: "orders", label: "Today's Orders", value: kpis.ordersToday, delta: kpis.ordersDelta, up: true, icon: ShoppingCart, tint: "primary" as const },
@@ -125,6 +146,18 @@ function MissionControl() {
                 <Link to="/ask" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-background border border-border text-[13px] font-semibold hover:bg-secondary">
                   <Sparkles className="h-3.5 w-3.5 text-primary" /> Ask the AI
                 </Link>
+                <button
+                  onClick={handleTriggerCron}
+                  disabled={isCronRunning}
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-955 text-[13px] font-semibold transition-colors cursor-pointer"
+                >
+                  {isCronRunning ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-950" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 text-slate-955" />
+                  )}
+                  <span className="text-slate-950">Fast-Forward AI Reminders</span>
+                </button>
               </div>
             </div>
 

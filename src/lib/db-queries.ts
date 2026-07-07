@@ -501,6 +501,109 @@ export const recordPaymentAction = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export const runCronAction = createServerFn({ method: "POST" })
+  .validator((data: { forceAll?: boolean } | undefined) => data)
+  .handler(async ({ data }) => {
+    try {
+      const now = new Date();
+      const forceAll = data?.forceAll ?? false;
+
+      // 1. Fetch all messages of kind "reminder"
+      const { data: reminderMsgs, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("kind", "reminder");
+
+      if (error) {
+        console.error("Cron: Failed to fetch reminders from Supabase:", error);
+        return { success: false, error: String(error) };
+      }
+
+      let processedCount = 0;
+
+      for (const msg of (reminderMsgs || [])) {
+        try {
+          if (!msg.data) continue;
+          
+          let payload: any = null;
+          try {
+            payload = JSON.parse(msg.data);
+          } catch (pe) {
+            // Corrupt JSON payload inside message row - skip
+            continue;
+          }
+
+          if (!payload) continue;
+
+          // Check if pending status
+          const status = payload.status || "pending";
+          if (status !== "pending") continue;
+
+          // Check due date
+          const dueDateStr = payload.dueDate;
+          if (!dueDateStr && !forceAll) continue;
+
+          if (dueDateStr && !forceAll) {
+            const dueDate = new Date(dueDateStr);
+            if (dueDate > now) {
+              // Not due yet
+              continue;
+            }
+          }
+
+          // Idempotency check: Transition local status to 'processing'
+          payload.status = "processing";
+          await supabase
+            .from("messages")
+            .update({ data: JSON.stringify(payload) })
+            .eq("id", msg.id);
+
+          // Construct nudge follow-up text
+          const noteText = payload.note || "Gentle payment nudge";
+          const dealerId = payload.dealerId || "d2";
+          const convoId = msg.conversationId;
+
+          // Insert WhatsApp AI follow-up message record in conversation
+          const nudgeId = crypto.randomUUID();
+          await supabase.from("messages").insert({
+            id: nudgeId,
+            conversationId: convoId,
+            fromRole: "ai",
+            text: `🚨 *Follow-up Dues Nudge:* Dear sir, this is a friendly reminder for the promised payment. (Note: ${noteText})`,
+            time: new Date().toISOString(),
+            kind: "text",
+            data: null
+          });
+
+          // Update conversation preview thread
+          await supabase.from("conversations").update({
+            preview: `🚨 Follow-up dues nudge sent.`,
+            unread: 1
+          }).eq("id", convoId);
+
+          // Update status to 'sent'
+          payload.status = "sent";
+          payload.sentAt = new Date().toISOString();
+          await supabase
+            .from("messages")
+            .update({ data: JSON.stringify(payload) })
+            .eq("id", msg.id);
+
+          processedCount++;
+        } catch (itemErr) {
+          // Rule 2: Skip bad rows and log; never crash the overall execution batch
+          console.error(`Cron: Skip error on reminder row ${msg.id}:`, itemErr);
+        }
+      }
+
+      return { success: true, processedCount };
+    } catch (err) {
+      // Rule 1: Safe fallback returning false rather than throwing 500 error
+      console.error("Cron: Unhandled execution error:", err);
+      return { success: false, error: String(err) };
+    }
+  });
+
 export const askAiQuery = createServerFn({ method: "POST" })
   .validator((query: string) => query)
   .handler(async ({ data: q }) => {
