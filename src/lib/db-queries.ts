@@ -241,6 +241,34 @@ export const getConversationsList = createServerFn({ method: "GET" }).handler(as
         kind: m.kind ? String(m.kind) : undefined,
         data: m.data ? (typeof m.data === "string" ? JSON.parse(m.data) : m.data) : undefined,
       }));
+
+    // Chronological message sorting
+    parsedMessages.sort((a, b) => {
+      const isSeededA = a.id.startsWith("m") && !a.id.includes("-");
+      const isSeededB = b.id.startsWith("m") && !b.id.includes("-");
+      
+      if (isSeededA && isSeededB) {
+        return parseInt(a.id.substring(1)) - parseInt(b.id.substring(1));
+      }
+      if (isSeededA && !isSeededB) {
+        return -1;
+      }
+      if (!isSeededA && isSeededB) {
+        return 1;
+      }
+
+      const isIsoA = a.time.includes("T") && a.time.includes("Z");
+      const isIsoB = b.time.includes("T") && b.time.includes("Z");
+      
+      if (isIsoA && !isIsoB) {
+        return 1; // ISO comes after non-ISO
+      }
+      if (!isIsoA && isIsoB) {
+        return -1; // non-ISO comes before ISO
+      }
+      
+      return a.time.localeCompare(b.time);
+    });
     
     const memoryMsg = msgs.find(m => m.fromRole === "system_memory");
     const memory = memoryMsg?.data ? (typeof memoryMsg.data === "string" ? JSON.parse(memoryMsg.data) : memoryMsg.data) : null;
@@ -261,7 +289,7 @@ export const postMessage = createServerFn({ method: "POST" })
   .validator((data: { conversationId: string; from: "dealer" | "ai"; text: string }) => data)
   .handler(async ({ data }) => {
     const msgId = crypto.randomUUID();
-    const time = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const time = new Date().toISOString();
     
     // 1. Insert incoming message
     await supabase.from("messages").insert({
@@ -276,8 +304,37 @@ export const postMessage = createServerFn({ method: "POST" })
     const { data: convo } = await supabase.from("conversations").select("dealer").eq("id", data.conversationId).maybeSingle();
     const dealerName = convo?.dealer || "Unknown";
 
-    const { data: msgs } = await supabase.from("messages").select("fromRole, text").eq("conversationId", data.conversationId);
-    const chatHistory = (msgs || []).map(m => {
+    const { data: msgs } = await supabase.from("messages").select("id, fromRole, text, time").eq("conversationId", data.conversationId);
+    
+    const sortedMsgs = msgs || [];
+    sortedMsgs.sort((a, b) => {
+      const isSeededA = a.id.startsWith("m") && !a.id.includes("-");
+      const isSeededB = b.id.startsWith("m") && !b.id.includes("-");
+      
+      if (isSeededA && isSeededB) {
+        return parseInt(a.id.substring(1)) - parseInt(b.id.substring(1));
+      }
+      if (isSeededA && !isSeededB) {
+        return -1;
+      }
+      if (!isSeededA && isSeededB) {
+        return 1;
+      }
+
+      const isIsoA = a.time.includes("T") && a.time.includes("Z");
+      const isIsoB = b.time.includes("T") && b.time.includes("Z");
+      
+      if (isIsoA && !isIsoB) {
+        return 1; // ISO comes after non-ISO
+      }
+      if (!isIsoA && isIsoB) {
+        return -1; // non-ISO comes before ISO
+      }
+      
+      return a.time.localeCompare(b.time);
+    });
+
+    const chatHistory = sortedMsgs.map(m => {
       const role = m.fromRole === "dealer" ? ("user" as const) : ("model" as const);
       return {
         role,
@@ -286,7 +343,7 @@ export const postMessage = createServerFn({ method: "POST" })
     });
 
     // 3. Trigger Gemini AI agent
-    const aiReply = await runAgentConversation(data.conversationId, dealerName, chatHistory);
+    const aiReply = await runAgentConversation(data.conversationId, dealerName, chatHistory, data.text);
 
     // 4. Save AI's response message (parsing JSON if available)
     let replyText = aiReply;
@@ -304,7 +361,7 @@ export const postMessage = createServerFn({ method: "POST" })
     }
 
     const aiMsgId = crypto.randomUUID();
-    const aiTime = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const aiTime = new Date().toISOString();
     await supabase.from("messages").insert({
       id: aiMsgId,
       conversationId: data.conversationId,
@@ -327,7 +384,7 @@ export const postMessage = createServerFn({ method: "POST" })
 export const confirmOrderAction = createServerFn({ method: "POST" })
   .validator((data: { conversationId: string; dealerId: string; invoiceId: string; items: { sku: string; qty: number; price: number; name: string }[]; total: number }) => data)
   .handler(async ({ data }) => {
-    const time = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const time = new Date().toISOString();
 
     // 1. Deduct stock levels in products table
     for (const item of data.items) {
@@ -405,7 +462,7 @@ export const confirmOrderAction = createServerFn({ method: "POST" })
 export const recordPaymentAction = createServerFn({ method: "POST" })
   .validator((data: { conversationId: string; dealerId: string; paidAmount: number; beforeAmount: number }) => data)
   .handler(async ({ data }) => {
-    const time = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const time = new Date().toISOString();
     const remaining = Math.max(0, data.beforeAmount - data.paidAmount);
 
     // 1. Update dealer balance

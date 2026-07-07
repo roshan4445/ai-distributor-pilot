@@ -1,7 +1,7 @@
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { tool } from "@langchain/core/tools";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { validateRequest } from "../guardrails/validator";
 import { generateExecutionPlan } from "../planner/planner";
@@ -53,6 +53,50 @@ const agentOutputSchema = z.object({
   data: z.any().nullable().describe("Payload data object matching the response kind (e.g. for order: { title, items, total, delivery })")
 });
 
+async function resolveDealerId(
+  conversationId: string,
+  dealerName?: string
+): Promise<string> {
+  // a) Try dealerName lookup first
+  if (dealerName && dealerName !== "Unknown" && dealerName !== "Business Owner") {
+    const { data: activeDealer } = await supabase
+      .from("dealers")
+      .select("id")
+      .eq("name", dealerName)
+      .maybeSingle();
+    if (activeDealer?.id) {
+      return activeDealer.id;
+    }
+  }
+
+  // b) Try conversationId lookup against a conversations table if one exists
+  const { data: convo } = await supabase
+    .from("conversations")
+    .select("dealer")
+    .eq("id", conversationId)
+    .maybeSingle();
+    
+  if (convo?.dealer) {
+    const { data: activeDealer } = await supabase
+      .from("dealers")
+      .select("id")
+      .eq("name", convo.dealer)
+      .maybeSingle();
+    if (activeDealer?.id) {
+      return activeDealer.id;
+    }
+  }
+
+  // c) Try session memory lastDealerId
+  const sessionMemory = await getMemory(conversationId);
+  if (sessionMemory?.lastDealerId) {
+    return sessionMemory.lastDealerId;
+  }
+
+  // d) Throw error if unresolved
+  throw new Error(`Could not resolve dealer context for conversationId: "${conversationId}" and dealerName: "${dealerName}"`);
+}
+
 export async function processAgentRequest(
   text: string,
   conversationId: string,
@@ -78,12 +122,7 @@ export async function processAgentRequest(
   transitionTo("VALIDATING");
 
   // Resolve active dealer profile context
-  const { data: activeDealer } = await supabase
-    .from("dealers")
-    .select("*")
-    .eq("name", dealerName)
-    .maybeSingle();
-  const dealerId = activeDealer?.id || (conversationId === "c1" ? "d3" : conversationId === "c2" ? "d1" : "d2");
+  const dealerId = await resolveDealerId(conversationId, dealerName);
 
   // 1. RUN GUARDRAILS (Validation)
   const validation = await validateRequest(text, dealerId);
@@ -173,8 +212,32 @@ export async function processAgentRequest(
       try {
         const invId = `INV-${Math.floor(1000 + Math.random() * 9000)}`;
         
+        // Resolve and validate items against database catalog
+        const { data: dbProducts } = await supabase.from("products").select("*");
+        const products = dbProducts || [];
+
+        const validatedItems = items.map(item => {
+          const match = products.find(p => p.sku.toLowerCase() === item.sku.toLowerCase()) || 
+                        products.find(p => p.name.toLowerCase() === item.name.toLowerCase()) ||
+                        products.find(p => p.name.toLowerCase().includes(item.name.toLowerCase())) ||
+                        products.find(p => item.name.toLowerCase().includes(p.name.toLowerCase()));
+          
+          if (!match) {
+            throw new Error(`Product reference "${item.name}" (SKU: "${item.sku}") was not found in our catalog.`);
+          }
+          
+          return {
+            sku: match.sku,
+            name: match.name,
+            qty: Number(item.qty) || 1,
+            price: Number(match.price)
+          };
+        });
+
+        const calculatedTotal = validatedItems.reduce((acc, item) => acc + (item.qty * item.price), 0);
+
         // Deduct inventory
-        for (const item of items) {
+        for (const item of validatedItems) {
           const { data: prod } = await supabase.from("products").select("stock").eq("sku", item.sku).maybeSingle();
           const cur = prod?.stock || 0;
           await supabase.from("products").update({ stock: Math.max(0, cur - item.qty) }).eq("sku", item.sku);
@@ -187,14 +250,14 @@ export async function processAgentRequest(
           invoice: invId,
           dealerId,
           dealerName,
-          total,
+          total: calculatedTotal,
           status: "processing",
           placedAt: "Just now",
           aiNote: `Confirmed by LangChain orchestrator (${traceId}).`
         });
 
         // Insert Order Items
-        for (const item of items) {
+        for (const item of validatedItems) {
           await supabase.from("order_items").insert({
             id: crypto.randomUUID(),
             orderId: newOrdId,
@@ -208,14 +271,14 @@ export async function processAgentRequest(
         await supabase.from("invoices").insert({
           id: invId,
           dealer: dealerName,
-          amount: total,
+          amount: calculatedTotal,
           date: "Today",
           status: "unpaid"
         });
 
         // Update dealer stats
         const { data: dl } = await supabase.from("dealers").select("pending, ordersCount").eq("id", dealerId).maybeSingle();
-        const pending = (dl?.pending || 0) + total;
+        const pending = (dl?.pending || 0) + calculatedTotal;
         const ordersCount = (dl?.ordersCount || 0) + 1;
         await supabase.from("dealers").update({ pending, ordersCount }).eq("id", dealerId);
 
@@ -225,7 +288,7 @@ export async function processAgentRequest(
           lastDealerId: dealerId
         });
 
-        return { success: true, invoiceId: invId, total };
+        return { success: true, invoiceId: invId, total: calculatedTotal };
       } catch (err) {
         console.error("createOrder tool failed:", err);
         return { success: false, error: String(err) };
@@ -315,6 +378,13 @@ Determine the intent of the message:
 - PRODUCT_QUERY: Inquiries about stock counts, SKU price, categories, or catalog.
 - BUSINESS_QUERY: General inquiries about reports, collections ranking, sales totals, profitability, or general conversations.
 
+AMBIGUITY RULES:
+- If the user requests a product category or generic name (e.g., "MCB", "Switch", "Wire", "Socket", "Light") and there are multiple matching models available in the "Products Stock" database list:
+  1. You MUST set the "confidence" field to 0.75 (which triggers a WAITING_FOR_USER clarification state).
+  2. You MUST set "toolsUsed" to [].
+  3. You MUST ask the user in your "response" which exact model and specs they want, listing the available options from the database catalog (e.g. "We have MCB 32A Single Pole (₹245) or MCB SWITCH 12 A (₹250). Which model would you like to order?").
+- If the user explicitly selects or names a specific product variant (e.g., "MCB 32A Single Pole" or "MCB SWITCH 12 A"), you can set a high confidence (0.95+) and draft the order.
+
 TONE CONSTRAINTS:
 - Speak like a polite, helpful trade manager. Respond directly to dealers using sir (e.g., "Hello sir, I have...").
 - NEVER mention database tables, JSON attributes, schema structures, or tool names.
@@ -326,26 +396,24 @@ Output a strict structured JSON matching the provided schema.`;
   transitionTo("PLANNING");
 
   let agentOutput: any = null;
-  const apiKey = process.env.GROQ_API_KEY || (process.env.GEMINI_API_KEY?.startsWith("gsk_") ? process.env.GEMINI_API_KEY : undefined);
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey) {
+    console.warn("⚠️ [DistributorAgent] GROQ_API_KEY is missing from environment variables!");
+  }
 
   // Transition: PLANNING -> THINKING
   transitionTo("THINKING");
 
   if (apiKey) {
-    process.env.GROQ_API_KEY = apiKey;
     try {
       // LangChain LLM Sequence (LCEL) Setup
       const model = new ChatGroq({
         apiKey,
+        model: "llama-3.3-70b-versatile",
         modelName: "llama-3.3-70b-versatile",
         temperature: 0.1
       }).withStructuredOutput(agentOutputSchema);
-
-      const prompt = ChatPromptTemplate.fromMessages([
-        ["system", systemInstruction],
-        new MessagesPlaceholder("history"),
-        ["user", "{input}"]
-      ]);
 
       // Formulate memory messages using LangChain standard formats
       const historyMessages = sessionMemory.recentConversation.map(c => 
@@ -354,20 +422,25 @@ Output a strict structured JSON matching the provided schema.`;
           : new AIMessage(c.text)
       );
 
-      // LCEL Pipe execution
-      const chain = prompt.pipe(model);
-      agentOutput = await chain.invoke({
-        input: text,
-        history: historyMessages
-      });
+      const messages = [
+        new SystemMessage(systemInstruction),
+        ...historyMessages,
+        new HumanMessage(text)
+      ];
+
+      // Invoke the model directly without using ChatPromptTemplate to avoid curly brace parsing bugs
+      console.log(`🟢 REAL LLM CALL: GROQ_API_KEY present (value type: ${typeof apiKey}), invoking ChatGroq model...`);
+      agentOutput = await model.invoke(messages);
     } catch (err) {
       console.warn("LangChain LLM invoke failed. Falling back to local rules engine.", err);
     }
   }
 
-  // Catch block fallback if key is exhausted
+  // Catch block fallback if key is exhausted or LLM was bypassed
   if (!agentOutput) {
-    const rawFallback = await runFallbackRulesEngine(text, productsList, dealersList, invoicesList, ordersList, conversationId);
+    console.log(`🟡 FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "${text}"`);
+    console.warn(`⚠️ [DistributorAgent] Triggering fallback rules engine for query: "${text}". (GROQ_API_KEY missing or LLM call failed)`);
+    const rawFallback = await runFallbackRulesEngine(text, productsList, dealersList, invoicesList, ordersList, conversationId, dealerId);
     agentOutput = JSON.parse(rawFallback);
   }
 
@@ -378,6 +451,38 @@ Output a strict structured JSON matching the provided schema.`;
   let data = agentOutput.data || null;
   const toolsUsed = agentOutput.toolsUsed || [];
   const params = agentOutput.toolParameters || {};
+
+  // If the agent draft has items, map them to the database items to resolve names/prices/SKUs and prevent NaN rendering
+  if (data && data.items && Array.isArray(data.items)) {
+    try {
+      const resolvedItems = data.items.map((item: any) => {
+        const match = productsList.find(p => p.sku.toLowerCase() === (item.sku || "").toLowerCase()) ||
+                      productsList.find(p => p.name.toLowerCase() === (item.name || "").toLowerCase()) ||
+                      productsList.find(p => p.name.toLowerCase().includes((item.name || "").toLowerCase())) ||
+                      productsList.find(p => (item.name || "").toLowerCase().includes(p.name.toLowerCase()));
+        
+        if (match) {
+          return {
+            sku: match.sku,
+            name: match.name,
+            qty: Number(item.qty) || 1,
+            price: Number(match.price)
+          };
+        }
+        return item;
+      });
+      data.items = resolvedItems;
+      data.total = resolvedItems.reduce((acc: number, item: any) => acc + ((item.qty || 1) * (item.price || 0)), 0);
+      
+      // Sync toolParameters as well
+      if (params.orderItems) {
+        params.orderItems = resolvedItems;
+        params.orderTotal = data.total;
+      }
+    } catch (resolveErr) {
+      console.warn("Failed to map draft products:", resolveErr);
+    }
+  }
 
   // Cache order draft details for non-hardcoded confirmation lookups
   if (kind === "order" && data && data.items) {
@@ -395,6 +500,8 @@ Output a strict structured JSON matching the provided schema.`;
     const finalDuration = Date.now() - stateStartTime;
     timeline.push({ state: "FAILED", duration: `${finalDuration}ms` });
 
+    const failedResponseText = "I am not confident enough to execute this request. Could you please provide more details?";
+
     const failedResponse: AgentResponse = {
       traceId,
       state: "FAILED",
@@ -410,11 +517,21 @@ Output a strict structured JSON matching the provided schema.`;
         summary: `Halted: Confidence score (${confidence}) is below threshold 0.50.`
       },
       executionTime: `${elapsed}ms`,
-      response: "I am not confident enough to execute this request. Could you please provide more details?",
-      text: "I am not confident enough to execute this request. Could you please provide more details?",
+      response: failedResponseText,
+      text: failedResponseText,
       kind: "text",
       data: null
     };
+
+    // Save interaction turn to conversation history memory
+    const updatedHistory = [
+      ...sessionMemory.recentConversation,
+      { role: "user" as const, text },
+      { role: "model" as const, text: failedResponseText }
+    ];
+    await updateMemory(conversationId, {
+      recentConversation: updatedHistory
+    });
 
     logAgentExecution({
       traceId,
@@ -444,6 +561,10 @@ Output a strict structured JSON matching the provided schema.`;
     const finalDuration = Date.now() - stateStartTime;
     timeline.push({ state: "WAITING_FOR_USER", duration: `${finalDuration}ms` });
 
+    const finalResponseText = responseText.includes("?") 
+      ? responseText 
+      : "I found multiple matching products in our catalog. Could you please clarify exactly which model and quantity you need sir?";
+
     const warningResponse: AgentResponse = {
       traceId,
       state: "WAITING_FOR_USER",
@@ -459,11 +580,22 @@ Output a strict structured JSON matching the provided schema.`;
         summary: `Clarification needed: Confidence score (${confidence}) is between 0.50 and 0.79.`
       },
       executionTime: `${elapsed}ms`,
-      response: responseText.includes("?") ? responseText : "I found multiple matching products in our catalog. Could you please clarify exactly which model and quantity you need sir?",
-      text: responseText.includes("?") ? responseText : "I found multiple matching products in our catalog. Could you please clarify exactly which model and quantity you need sir?",
+      response: finalResponseText,
+      text: finalResponseText,
       kind: "text",
       data: null
     };
+
+    // Save interaction turn to conversation history memory so the next turn has context
+    const updatedHistory = [
+      ...sessionMemory.recentConversation,
+      { role: "user" as const, text },
+      { role: "model" as const, text: finalResponseText }
+    ];
+    await updateMemory(conversationId, {
+      recentConversation: updatedHistory,
+      pendingClarification: intent === "ORDER" ? "ORDER_PRODUCT" : undefined
+    });
 
     logAgentExecution({
       traceId,
@@ -487,7 +619,14 @@ Output a strict structured JSON matching the provided schema.`;
   }
 
   // Plan generation
-  const plan = await generateExecutionPlan(text, intent);
+  let plannerText = text;
+  if (intent === "ORDER" && (text.toLowerCase().includes("confirm") || text.toLowerCase().includes("yes") || text.toLowerCase().includes("done") || text.toLowerCase().includes("agree"))) {
+    if (sessionMemory.lastDraft && sessionMemory.lastDraft.items) {
+      const itemDescs = sessionMemory.lastDraft.items.map((it: any) => `${it.qty}x ${it.name}`).join(", ");
+      plannerText = `Confirm order draft for ${itemDescs}`;
+    }
+  }
+  const plan = await generateExecutionPlan(plannerText, intent);
 
   // Transition: THINKING -> EXECUTING
   transitionTo("EXECUTING");
@@ -742,7 +881,7 @@ Output a strict structured JSON matching the provided schema.`;
     // Backward compatibility keys
     text: responseText,
     kind,
-    data: data ? { ...data, invoice: data.invoice || sessionMemory.lastInvoiceId } : null
+    data: data ? { ...data, invoice: createdInvoiceId || data.invoice || sessionMemory.lastInvoiceId } : null
   };
 
   // Observability trace logs print output
@@ -774,7 +913,8 @@ async function runFallbackRulesEngine(
   dealers: any[],
   invoices: any[],
   orders: any[],
-  conversationId: string
+  conversationId: string,
+  dealerId: string
 ): Promise<string> {
   const lower = text.toLowerCase();
   const sessionMemory = await getMemory(conversationId);
@@ -805,7 +945,6 @@ async function runFallbackRulesEngine(
   // 2. Repeat Order Trigger
   const hasRepeat = lower.includes("repeat") || lower.includes("previous") || lower.includes("same");
   if (hasRepeat) {
-    const dealerId = sessionMemory.lastDealerId || (conversationId === "c1" ? "d3" : conversationId === "c2" ? "d1" : "d2");
     const dealerOrders = orders.filter(o => o.dealerId === dealerId);
     let items: any[] = [];
     let total = 0;
@@ -861,7 +1000,7 @@ async function runFallbackRulesEngine(
     });
   }
 
-  if (lower.includes("want") || lower.includes("buy") || lower.includes("order") || lower.includes("purchase") || lower.includes("mcb") || lower.includes("switch") || lower.includes("wire")) {
+  if (lower.includes("want") || lower.includes("buy") || lower.includes("order") || lower.includes("purchase") || lower.includes("need") || lower.includes("send") || lower.includes("please") || lower.includes("mcb") || lower.includes("switch") || lower.includes("wire") || lower.includes("light")) {
     const items: any[] = [];
     let total = 0;
     
@@ -869,98 +1008,54 @@ async function runFallbackRulesEngine(
     const qtyMatch = text.match(/\d+/);
     const qty = qtyMatch ? Number(qtyMatch[0]) : 20;
 
-    const hasMcb = lower.includes("mcb");
-    const hasSwitch = lower.includes("switch");
     const tokens = lower.split(/[\s\-]+/);
-
-    const mcbCandidates = products.filter(p => p.name.toLowerCase().includes("mcb") || p.sku.toLowerCase().includes("mcb"));
-    const switchCandidates = products.filter(p => p.name.toLowerCase().includes("switch") || p.sku.toLowerCase().includes("switch"));
-
-    let selectedMcb = products.find(p => p.sku === "MCB-32A-SP") || products.find(p => p.name.toLowerCase().includes("mcb"));
-    let selectedSwitch = products.find(p => p.sku === "SW-MOD-6A") || products.find(p => p.name.toLowerCase().includes("switch"));
-
-    if (hasMcb) {
-      const scores = mcbCandidates.map(p => {
-        const pNameLower = p.name.toLowerCase();
-        const pSkuLower = p.sku.toLowerCase();
-        let score = 0;
-        for (const t of tokens) {
-          if (t.length > 1 && t !== "want" && t !== "order" && t !== "purchase" && t !== "need" && t !== "mcb" && t !== "mcbs") {
-            if (pNameLower.includes(t) || pSkuLower.includes(t)) {
-              score++;
-            }
+    const scoredProducts = products.map(p => {
+      const pNameLower = p.name.toLowerCase();
+      const pSkuLower = p.sku.toLowerCase();
+      let score = 0;
+      for (const t of tokens) {
+        if (t.length > 1 && t !== "want" && t !== "need" && t !== "order" && t !== "pieces" && t !== "peices" && t !== "please" && t !== "select" && t !== "items" && t !== "units") {
+          // Check if token matches a name or SKU word
+          if (pNameLower.includes(t) || pSkuLower.includes(t)) {
+            score += 2;
           }
         }
-        return { product: p, score };
-      });
+      }
+      return { product: p, score };
+    });
 
-      scores.sort((a, b) => b.score - a.score);
+    const matchedProducts = scoredProducts.filter(x => x.score > 0);
+    matchedProducts.sort((a, b) => b.score - a.score);
 
-      // Trigger clarification if scores are tied at 0 and multiple items exist
-      if (scores.length > 1 && scores[0].score === 0) {
-        const optionsList = mcbCandidates.map(p => `**${p.name}** (₹${p.price})`).join(" or ");
+    let selectedProduct = products.find(p => p.sku === "MCB-32A-SP");
+
+    if (matchedProducts.length > 0) {
+      selectedProduct = matchedProducts[0].product;
+      // If multiple candidates have the same top score, check for ambiguity
+      const topScore = matchedProducts[0].score;
+      const topCandidates = matchedProducts.filter(x => x.score === topScore);
+      if (topCandidates.length > 1) {
+        const optionsList = topCandidates.map(x => `**${x.product.name}** (₹${x.product.price})`).join(" or ");
         return JSON.stringify({
           intent: "ORDER",
-          confidence: 0.75, // Confidence is between 0.50 and 0.79 to trigger WAITING_FOR_USER
+          confidence: 0.75, // WAITING_FOR_USER
           toolsUsed: [],
-          response: `Sir, we have multiple MCB models available: ${optionsList}. Which model would you like to order?`,
+          response: `Sir, we have multiple options available matching your query: ${optionsList}. Which model would you like to order?`,
           kind: "text",
           data: null
         });
       }
-
-      if (scores[0]?.product) {
-        selectedMcb = scores[0].product;
-      }
     }
 
-    if (hasSwitch) {
-      const scores = switchCandidates.map(p => {
-        const pNameLower = p.name.toLowerCase();
-        const pSkuLower = p.sku.toLowerCase();
-        let score = 0;
-        for (const t of tokens) {
-          if (t.length > 1 && t !== "want" && t !== "order" && t !== "purchase" && t !== "need" && t !== "switch" && t !== "switches") {
-            if (pNameLower.includes(t) || pSkuLower.includes(t)) {
-              score++;
-            }
-          }
-        }
-        return { product: p, score };
-      });
-
-      scores.sort((a, b) => b.score - a.score);
-
-      if (scores.length > 1 && scores[0].score === 0) {
-        const optionsList = switchCandidates.map(p => `**${p.name}** (₹${p.price})`).join(" or ");
-        return JSON.stringify({
-          intent: "ORDER",
-          confidence: 0.75,
-          toolsUsed: [],
-          response: `Sir, we have multiple Switch models available: ${optionsList}. Which model would you like to order?`,
-          kind: "text",
-          data: null
-        });
-      }
-
-      if (scores[0]?.product) {
-        selectedSwitch = scores[0].product;
-      }
+    if (selectedProduct) {
+      items.push({ sku: selectedProduct.sku, name: selectedProduct.name, qty, price: selectedProduct.price });
+      total += qty * selectedProduct.price;
     }
 
-    if (hasMcb || (!hasMcb && !hasSwitch)) {
-      if (selectedMcb) {
-        items.push({ sku: selectedMcb.sku, name: selectedMcb.name, qty, price: selectedMcb.price });
-        total += qty * selectedMcb.price;
-      }
-    }
-    if (hasSwitch) {
-      const switchQty = hasMcb ? 15 : qty;
-      if (selectedSwitch) {
-        items.push({ sku: selectedSwitch.sku, name: selectedSwitch.name, qty: switchQty, price: selectedSwitch.price });
-        total += switchQty * selectedSwitch.price;
-      }
-    }
+    // Save draft in session memory
+    await updateMemory(conversationId, {
+      lastDraft: { items, total }
+    });
 
     const itemsDesc = items.map(item => `**${item.qty} ${item.name}**`).join(" and ");
 
@@ -979,9 +1074,41 @@ async function runFallbackRulesEngine(
     });
   }
 
-  if (lower.includes("paid") || lower.includes("pay") || lower.includes("diwali") || lower.includes("ledger")) {
+  if (lower.includes("outstanding") || lower.includes("dues") || lower.includes("owe") || lower.includes("pending balance") || lower.includes("pending dues") || lower.includes("ledger")) {
+    const dealer = dealers.find(d => d.id === dealerId) || dealers[0];
+    const pendingAmount = dealer ? dealer.pending : 124500;
+    
+    return JSON.stringify({
+      intent: "BUSINESS_QUERY",
+      confidence: 0.95,
+      toolsUsed: [],
+      response: `Sir, your total outstanding balance is **₹${pendingAmount.toLocaleString("en-IN")}**. Please let me know if you need invoice breakdown details or want to log a payment.`,
+      kind: "text",
+      data: null
+    });
+  }
+
+  if (lower.includes("diwali") || lower.includes("dusheera") || lower.includes("dussehra") || lower.includes("promise") || lower.includes("will pay") || lower.includes("pay after") || lower.includes("pay later")) {
+    const dealer = dealers.find(d => d.id === dealerId) || dealers[0];
+    const pendingAmount = dealer ? dealer.pending : 124500;
+    
+    return JSON.stringify({
+      intent: "PAYMENT_PROMISE",
+      confidence: 0.95,
+      toolsUsed: [],
+      response: `Understood sir. I have registered your payment promise for the remaining balance of **₹${pendingAmount.toLocaleString("en-IN")}**. A reminder has been set.`,
+      kind: "text",
+      data: null
+    });
+  }
+
+  if (lower.includes("paid") || lower.includes("pay") || lower.includes("remitted") || lower.includes("transferred") || lower.includes("sent")) {
     const match = text.match(/\d+/);
     const amount = match ? Number(match[0]) : 20000;
+    
+    const dealer = dealers.find(d => d.id === dealerId) || dealers[0];
+    const beforeAmount = dealer ? dealer.pending : 124500;
+    
     return JSON.stringify({
       intent: "PAYMENT",
       confidence: 0.98,
@@ -990,8 +1117,8 @@ async function runFallbackRulesEngine(
       kind: "ledger",
       data: {
         paid: amount,
-        remaining: Math.max(0, 124500 - amount),
-        before: 124500
+        remaining: Math.max(0, beforeAmount - amount),
+        before: beforeAmount
       }
     });
   }

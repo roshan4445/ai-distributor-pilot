@@ -92,7 +92,7 @@ export async function validateRequest(
     
     // Look for common request patterns, e.g. "order 10 MCB", "need Modular Switch"
     // We check if a dealer specifies a product word but none of our product names or SKUs matches it
-    const words = lower.split(/\s+/);
+    const words = lower.split(/\s+/).map(w => w.replace(/[^\w\-]/g, "")).filter(Boolean);
     const potentialProducts = ["wire", "mcb", "switch", "socket", "board", "light", "panel", "led"];
     
     for (const word of words) {

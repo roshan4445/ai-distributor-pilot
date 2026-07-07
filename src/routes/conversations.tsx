@@ -124,6 +124,7 @@ function ConversationsPage() {
   const active = conversationsList.find((c) => c.id === activeId)!;
 
   const [typingInput, setTypingInput] = useState("");
+  const [activeQueryText, setActiveQueryText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [simulationMode, setSimulationMode] = useState<"dealer" | "ai">("dealer");
   const [localMessages, setLocalMessages] = useState<any[]>([]);
@@ -182,6 +183,7 @@ function ConversationsPage() {
     const text = typingInput.trim();
     if (!text || isSending) return;
     setIsSending(true);
+    setActiveQueryText(text);
     setTypingInput("");
 
     // Appending optimistic message instantly
@@ -239,6 +241,58 @@ function ConversationsPage() {
       setIsSending(false);
     }
   };
+
+  // Derive plan from activeQueryText for live loading stepper
+  const getLivePlan = () => {
+    const query = activeQueryText.toLowerCase();
+    
+    if (query.includes("pay") || query.includes("paid") || query.includes("ledger") || 
+        query.includes("balance") || query.includes("outstanding") || query.includes("due") || 
+        query.includes("invoice")) {
+      return {
+        goal: "Goal: Audit Dues & Ledger Accounts",
+        steps: [
+          "Validate Dealer Profile",
+          "Retrieve Invoices Ledger Accounts",
+          "Sum Outstanding Receivables",
+          "Verify Payment Promises/Stats",
+          "Format Balance Summary & Report",
+          "Confirm Consistent Ledger State"
+        ]
+      };
+    }
+    
+    if (query.includes("want") || query.includes("buy") || query.includes("order") || 
+        query.includes("purchase") || query.includes("mcb") || query.includes("switch") || 
+        query.includes("wire") || query.includes("skt") || query.includes("socket") || 
+        query.includes("light") || query.includes("confirm")) {
+      return {
+        goal: "Goal: Process & Draft Sales Order",
+        steps: [
+          "Validate Dealer Profile",
+          "Identify Requested Product Catalog",
+          "Verify Safety Stock Limits",
+          "Check Dealer Credit Limit/Dues",
+          "Calculate Order Wholesale Total",
+          "Format Draft Proposal Bubble"
+        ]
+      };
+    }
+    
+    return {
+      goal: "Goal: Process Dealer Inquiry",
+      steps: [
+        "Validate Dealer Profile",
+        "Analyze Inquiry Intent & Details",
+        "Query Context Databases",
+        "Formulate Natural Response",
+        "Post AI Reply to Dealer",
+        "Log Activity Reflection"
+      ]
+    };
+  };
+
+  const livePlan = getLivePlan();
 
   return (
     <AppShell>
@@ -442,14 +496,16 @@ function ConversationsPage() {
                 <div className="p-5 space-y-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Execution Plan</div>
                   <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-3.5 space-y-2">
-                    <div className="text-[11.5px] font-semibold text-primary">Goal: Process Dealer Request</div>
+                    <div className="text-[11.5px] font-semibold text-primary">{livePlan.goal}</div>
                     <div className="space-y-1.5 text-[11px] text-slate-400">
-                      <div className={pipelineStep >= 2 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 2 ? "✓" : "○"} Validate Dealer Profile</div>
-                      <div className={pipelineStep >= 2 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 2 ? "✓" : "○"} Validate Product Catalog</div>
-                      <div className={pipelineStep >= 4 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 4 ? "✓" : "○"} Verify Safety Stock Limits</div>
-                      <div className={pipelineStep >= 4 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 4 ? "✓" : "○"} Create Order Entry</div>
-                      <div className={pipelineStep >= 5 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 5 ? "✓" : "○"} Auto-Generate Invoice</div>
-                      <div className={pipelineStep >= 6 ? "text-success font-medium" : "text-slate-300 font-medium"}>{pipelineStep >= 6 ? "✓" : "○"} Reflect & Confirm Consistent</div>
+                      {livePlan.steps.map((step, idx) => {
+                        const stepActive = pipelineStep >= (idx + 1);
+                        return (
+                          <div key={idx} className={stepActive ? "text-success font-medium" : "text-slate-300 font-medium"}>
+                            {stepActive ? "✓" : "○"} {step}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -463,7 +519,16 @@ function ConversationsPage() {
                   <MonitorRow label="Guardrail Status" value={pipelineStep >= 1 ? "PASSED" : "VALIDATING..."} tone={pipelineStep >= 1 ? "success" : "warning"} />
                   <MonitorRow label="Planner Status" value={pipelineStep >= 2 ? "PLAN GENERATED" : "PLANNING..."} tone={pipelineStep >= 2 ? "success" : "warning"} />
                   <MonitorRow label="Confidence" value="98%" tone="success" />
-                  <MonitorRow label="Tools Active" value={pipelineStep === 3 ? "createOrder()" : pipelineStep > 3 ? "createOrder() (Done)" : "None"} />
+                  <MonitorRow 
+                    label="Tools Active" 
+                    value={
+                      pipelineStep === 3 
+                        ? (activeQueryText.toLowerCase().includes("pay") || activeQueryText.toLowerCase().includes("paid") ? "recordPayment()" : "createOrder()") 
+                        : pipelineStep > 3 
+                          ? (activeQueryText.toLowerCase().includes("pay") || activeQueryText.toLowerCase().includes("paid") ? "recordPayment() (Done)" : "createOrder() (Done)") 
+                          : "None"
+                    } 
+                  />
                   <MonitorRow label="Reflection Status" value={pipelineStep >= 5 ? "HEALTHY" : "WAITING..."} tone={pipelineStep >= 5 ? "success" : "warning"} />
                 </div>
               </div>
@@ -688,6 +753,18 @@ function MonitorRow({ label, value, tone }: { label: string; value: string; tone
   );
 }
 
+function formatMessageTime(timeStr: string) {
+  if (!timeStr) return "";
+  if (timeStr.includes("T") && timeStr.includes("Z")) {
+    try {
+      return new Date(timeStr).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    } catch (_) {
+      return timeStr;
+    }
+  }
+  return timeStr;
+}
+
 function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (invoiceId: string) => void }) {
   const isDealer = msg.from === "dealer";
   const [showTrace, setShowTrace] = useState(false);
@@ -703,7 +780,7 @@ function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (i
             {msg.text ? <div className="space-y-1">{formatMessage(msg.text)}</div> : null}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[10.5px] text-muted-foreground">
-            {msg.time}
+            {formatMessageTime(msg.time)}
           </div>
         </div>
       </motion.div>
@@ -869,7 +946,7 @@ function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (i
 
         {/* Time and check check tick mark */}
         <div className="mt-1 flex items-center gap-1 text-[10.5px] text-muted-foreground justify-end">
-          {msg.time}
+          {formatMessageTime(msg.time)}
           {!isThinking && <CheckCheck className="h-3 w-3 text-primary" />}
         </div>
       </div>

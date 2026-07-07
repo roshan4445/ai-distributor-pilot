@@ -254,4 +254,4 @@ export const askAiSeedChat = [
 ];
 
 export const fmt = (n: number) =>
-  "₹" + n.toLocaleString("en-IN");
+  typeof n === "number" && !isNaN(n) ? "₹" + n.toLocaleString("en-IN") : "₹0";

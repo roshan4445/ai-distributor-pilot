@@ -85,6 +85,9 @@ export async function generateExecutionPlan(
 
   // If GROQ_API_KEY is configured, we can optimize the steps using the LLM for custom inputs
   const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    console.warn("⚠️ [Planner] GROQ_API_KEY is missing from environment variables! Using deterministic fallback plans.");
+  }
   if (apiKey) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
