@@ -15,8 +15,10 @@ import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/conversations")({
   loader: async () => {
-    const conversations = await getConversationsList();
-    const dealers = await getDealers();
+    const [conversations, dealers] = await Promise.all([
+      getConversationsList(),
+      getDealers()
+    ]);
     return { conversations, dealers };
   },
   head: () => ({

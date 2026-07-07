@@ -1,16 +1,40 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "motion/react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import {
   ArrowUpRight, ArrowDownRight, Sparkles, AlertTriangle, TrendingUp, Lightbulb,
   ShoppingCart, FileText, Package, Bell, Wallet, IndianRupee, CheckCircle2, PhoneCall,
 } from "lucide-react";
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell,
-} from "recharts";
 import { AppShell } from "@/components/app-shell";
 import { Pill } from "@/components/badges";
 import { owner, fmt } from "@/lib/mock-data";
 import { getDashboardData } from "@/lib/db-queries";
+
+const DashboardCharts = lazy(() => import("@/components/dashboard-charts"));
+
+function ChartsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 animate-pulse">
+      <div className="card-surface p-5 xl:col-span-2 h-[354px] bg-secondary/10 flex flex-col justify-between">
+        <div className="space-y-2">
+          <div className="h-3 w-16 bg-muted rounded" />
+          <div className="h-5 w-48 bg-muted rounded" />
+        </div>
+        <div className="h-48 w-full bg-muted/40 rounded-xl" />
+      </div>
+      <div className="card-surface p-5 h-[354px] bg-secondary/10 flex flex-col justify-between">
+        <div className="space-y-2">
+          <div className="h-3 w-16 bg-muted rounded" />
+          <div className="h-5 w-32 bg-muted rounded" />
+        </div>
+        <div className="h-36 w-36 mx-auto rounded-full bg-muted/40" />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-4 bg-muted/40 rounded" />
+          <div className="h-4 bg-muted/40 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/")({
   loader: () => getDashboardData(),
@@ -58,10 +82,13 @@ const activityIcon: Record<string, any> = {
   order: ShoppingCart, invoice: FileText, inventory: Package, reminder: Bell, payment: CheckCircle2, ledger: Wallet,
 };
 
-const CHART_COLORS = ["#2563EB", "#7c3aed", "#0ea5e9", "#22c55e", "#f59e0b"];
-
 function MissionControl() {
   const { kpis, revenueTrend, categoryMix, insights, activity } = Route.useLoaderData();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const kpiCards = [
     { key: "orders", label: "Today's Orders", value: kpis.ordersToday, delta: kpis.ordersDelta, up: true, icon: ShoppingCart, tint: "primary" as const },
@@ -76,8 +103,7 @@ function MissionControl() {
     <AppShell>
       <div className="px-5 md:px-8 py-8 max-w-[1400px] mx-auto space-y-8">
         {/* Hero */}
-        <motion.section
-          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        <section
           className="relative overflow-hidden rounded-3xl border border-border gradient-hero px-6 md:px-10 py-8 md:py-10"
         >
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
@@ -104,17 +130,16 @@ function MissionControl() {
 
             <HealthRing value={kpis.businessHealth} />
           </div>
-        </motion.section>
+        </section>
 
         {/* KPIs */}
         <section>
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
-            {kpiCards.map((k, i) => {
+            {kpiCards.map((k) => {
               const Icon = k.icon;
               return (
-                <motion.div
+                <div
                   key={k.key}
-                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 * i, duration: 0.3 }}
                   className="card-surface p-4 hover:shadow-elevate transition-shadow"
                 >
                   <div className="flex items-center justify-between">
@@ -130,80 +155,20 @@ function MissionControl() {
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{k.label}</div>
                     <div className="mt-0.5 text-[22px] font-semibold tracking-tight">{k.value}</div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
         </section>
 
         {/* Middle grid: chart + AI insights */}
-        <section className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-          <div className="card-surface p-5 xl:col-span-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">This week</div>
-                <div className="text-[17px] font-semibold tracking-tight">Revenue vs Collections</div>
-              </div>
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> Revenue</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-success" /> Collections</span>
-              </div>
-            </div>
-            <div className="h-64 mt-4">
-              <ResponsiveContainer>
-                <AreaChart data={revenueTrend} margin={{ left: -12, right: 8, top: 8, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="col" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef1f5" vertical={false} />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#64748b" }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `₹${v / 1000}k`} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
-                    formatter={(v: number) => fmt(v)}
-                  />
-                  <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={2.5} fill="url(#rev)" />
-                  <Area type="monotone" dataKey="collections" stroke="#22c55e" strokeWidth={2.5} fill="url(#col)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="card-surface p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sales mix</div>
-                <div className="text-[17px] font-semibold tracking-tight">Category share</div>
-              </div>
-            </div>
-            <div className="h-40 mt-2">
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie data={categoryMix} dataKey="value" innerRadius={44} outerRadius={64} paddingAngle={3}>
-                    {categoryMix.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }} formatter={(v: number) => `${v}%`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {categoryMix.map((c, i) => (
-                <div key={c.name} className="flex items-center gap-2 text-[12px]">
-                  <span className="h-2 w-2 rounded-full" style={{ background: CHART_COLORS[i] }} />
-                  <span className="text-muted-foreground">{c.name}</span>
-                  <span className="ml-auto font-semibold">{c.value}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <Suspense fallback={<ChartsSkeleton />}>
+          {isClient ? (
+            <DashboardCharts revenueTrend={revenueTrend} categoryMix={categoryMix} />
+          ) : (
+            <ChartsSkeleton />
+          )}
+        </Suspense>
 
         {/* AI Insights */}
         <section className="card-surface p-5 md:p-6">
@@ -282,13 +247,14 @@ function HealthRing({ value }: { value: number }) {
       <div className="relative h-28 w-28">
         <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
           <circle cx="50" cy="50" r={r} strokeWidth="8" className="stroke-border" fill="none" />
-          <motion.circle
+          <circle
             cx="50" cy="50" r={r} strokeWidth="8" fill="none"
             className="stroke-primary" strokeLinecap="round"
             strokeDasharray={c}
-            initial={{ strokeDashoffset: c }}
-            animate={{ strokeDashoffset: off }}
-            transition={{ duration: 1.2, ease: "easeOut" }}
+            strokeDashoffset={off}
+            style={{
+              transition: "stroke-dashoffset 1.2s ease-out",
+            }}
           />
         </svg>
         <div className="absolute inset-0 grid place-items-center">

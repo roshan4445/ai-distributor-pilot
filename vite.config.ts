@@ -17,6 +17,9 @@ export default defineConfig({
     preset: "vercel"
   },
   vite: {
+    optimizeDeps: {
+      include: ["recharts", "motion", "lucide-react", "@supabase/supabase-js"]
+    },
     resolve: {
       alias: {
         tslib: path.resolve("src/utils/tslib-shim.js")

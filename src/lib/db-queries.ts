@@ -6,10 +6,19 @@ import { runAgentConversation, runAgentQuery, runAgentDuesAnalysis } from "./gem
 export async function ensureDb() {}
 
 export const getDashboardData = createServerFn({ method: "GET" }).handler(async () => {
-  const { data: dealers } = await supabase.from("dealers").select("*");
-  const { data: products } = await supabase.from("products").select("*");
-  const { data: orders } = await supabase.from("orders").select("*");
-  const { data: invoices } = await supabase.from("invoices").select("*");
+  const [
+    { data: dealers },
+    { data: products },
+    { data: orders },
+    { data: invoices },
+    { count: reminderCount }
+  ] = await Promise.all([
+    supabase.from("dealers").select("*"),
+    supabase.from("products").select("*"),
+    supabase.from("orders").select("*"),
+    supabase.from("invoices").select("*"),
+    supabase.from("messages").select("id", { count: "exact", head: true }).eq("kind", "reminder")
+  ]);
 
   const dealersList = dealers || [];
   const productsList = products || [];
@@ -37,7 +46,7 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
     duesDelta: "-4%",
     inventoryAlerts,
     invoicesGenerated: invoicesList.length,
-    followUps: 8,
+    followUps: 4 + (reminderCount || 0),
     collectionsToday: 126000,
     businessHealth: 98,
   };
@@ -102,15 +111,21 @@ export const getDealerById = createServerFn({ method: "GET" })
     const { data: dealer } = await supabase.from("dealers").select("*").eq("id", id).maybeSingle();
     if (!dealer) return null;
 
-    const { data: orders } = await supabase.from("orders").select("*").eq("dealerId", id);
-    const { data: invoices } = await supabase.from("invoices").select("*").eq("dealer", dealer.name);
-    const { data: conversations } = await supabase.from("conversations").select("*").eq("dealer", dealer.name);
+    const [
+      { data: orders },
+      { data: invoices },
+      { data: conversations }
+    ] = await Promise.all([
+      supabase.from("orders").select("*").eq("dealerId", id),
+      supabase.from("invoices").select("*").eq("dealer", dealer.name),
+      supabase.from("conversations").select("*, messages(*)").eq("dealer", dealer.name)
+    ]);
 
     let messages: any[] = [];
     const activeConvo = conversations?.[0];
     if (activeConvo) {
-      const { data: msgs } = await supabase.from("messages").select("*").eq("conversationId", activeConvo.id);
-      messages = (msgs || []).map(m => ({
+      const msgs = (activeConvo.messages as any[]) || [];
+      messages = msgs.map(m => ({
         id: String(m.id),
         from: String(m.fromRole) as "dealer" | "ai" | "system",
         text: m.text ? String(m.text) : undefined,
@@ -186,36 +201,37 @@ export const getInvoices = createServerFn({ method: "GET" }).handler(async () =>
 });
 
 export const getOrders = createServerFn({ method: "GET" }).handler(async () => {
-  const { data: orders } = await supabase.from("orders").select("*").order("invoice", { ascending: false });
-  const result = [];
-  for (const row of (orders || [])) {
-    const { data: items } = await supabase.from("order_items").select("name, qty, price").eq("orderId", row.id);
-    result.push({
-      id: String(row.id),
-      invoice: String(row.invoice),
-      dealerId: String(row.dealerId),
-      dealer: String(row.dealerName),
-      total: Number(row.total),
-      status: String(row.status) as "processing" | "packed" | "dispatched" | "delivered",
-      placedAt: String(row.placedAt),
-      aiNote: String(row.aiNote),
-      items: (items || []).map(it => ({
-        name: String(it.name),
-        qty: Number(it.qty),
-        price: Number(it.price),
-      })),
-    });
-  }
-  return result;
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("*, order_items(name, qty, price)")
+    .order("invoice", { ascending: false });
+
+  return (orders || []).map(row => ({
+    id: String(row.id),
+    invoice: String(row.invoice),
+    dealerId: String(row.dealerId),
+    dealer: String(row.dealerName),
+    total: Number(row.total),
+    status: String(row.status) as "processing" | "packed" | "dispatched" | "delivered",
+    placedAt: String(row.placedAt),
+    aiNote: String(row.aiNote),
+    items: (((row as any).order_items as any[]) || []).map(it => ({
+      name: String(it.name),
+      qty: Number(it.qty),
+      price: Number(it.price),
+    })),
+  }));
 });
 
 export const getConversationsList = createServerFn({ method: "GET" }).handler(async () => {
-  const { data: conversations } = await supabase.from("conversations").select("*");
-  const list = [];
-  for (const c of (conversations || [])) {
-    const { data: msgs } = await supabase.from("messages").select("*").eq("conversationId", c.id);
+  const { data: conversations } = await supabase
+    .from("conversations")
+    .select("*, messages(*)");
+
+  return (conversations || []).map(c => {
+    const msgs = ((c as any).messages as any[]) || [];
     
-    const parsedMessages = (msgs || [])
+    const parsedMessages = msgs
       .filter(m => m.fromRole !== "system_memory")
       .map(m => ({
         id: String(m.id),
@@ -226,10 +242,10 @@ export const getConversationsList = createServerFn({ method: "GET" }).handler(as
         data: m.data ? (typeof m.data === "string" ? JSON.parse(m.data) : m.data) : undefined,
       }));
     
-    const memoryMsg = (msgs || []).find(m => m.fromRole === "system_memory");
+    const memoryMsg = msgs.find(m => m.fromRole === "system_memory");
     const memory = memoryMsg?.data ? (typeof memoryMsg.data === "string" ? JSON.parse(memoryMsg.data) : memoryMsg.data) : null;
 
-    list.push({
+    return {
       id: String(c.id),
       dealer: String(c.dealer),
       city: String(c.city),
@@ -237,9 +253,8 @@ export const getConversationsList = createServerFn({ method: "GET" }).handler(as
       preview: String(c.preview),
       messages: parsedMessages,
       memory
-    });
-  }
-  return list;
+    };
+  });
 });
 
 export const postMessage = createServerFn({ method: "POST" })
