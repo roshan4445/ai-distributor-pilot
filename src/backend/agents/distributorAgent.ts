@@ -428,7 +428,28 @@ AMBIGUITY RULES:
 TONE CONSTRAINTS:
 - Speak like a polite wholesale manager. Respond with sir. No database details.
 
-Output a strict structured JSON matching the schema.`;
+CRITICAL FORMATTING INSTRUCTIONS:
+You MUST respond with ONLY a raw JSON object matching the schema below.
+DO NOT wrap the response in markdown code blocks (such as \`\`\`json ... \`\`\`).
+DO NOT include any explanations, warnings, preambles, or postscripts.
+Your entire output must parse successfully as a single JSON object.
+
+JSON SCHEMA:
+{
+  "intent": "ORDER" | "PAYMENT" | "PAYMENT_PROMISE" | "INVOICE" | "PRODUCT_QUERY" | "BUSINESS_QUERY",
+  "confidence": number (between 0 and 1),
+  "response": "Polite natural language message responding to the dealer",
+  "toolsUsed": string[],
+  "toolParameters": {
+    "orderItems": [{ "sku": string, "name": string, "qty": number, "price": number }],
+    "orderTotal": number,
+    "paymentAmount": number,
+    "reminderWhen": string,
+    "reminderNote": string
+  },
+  "kind": "order" | "invoice" | "ledger" | "reminder" | "text",
+  "data": any
+}`;
 
   // Transition: VALIDATING -> PLANNING
   transitionTo("PLANNING");
@@ -472,17 +493,17 @@ Output a strict structured JSON matching the schema.`;
   // Transition: PLANNING -> THINKING
   transitionTo("THINKING");
 
+  let rawText = "";
   if (!agentOutput && apiKey) {
     try {
+      console.log("Invoking Groq...");
       // LangChain LLM Sequence (LCEL) Setup
-      const baseModel = new ChatGroq({
+      const llm = new ChatGroq({
         apiKey,
         model: "llama-3.3-70b-versatile",
-        modelName: "llama-3.3-70b-versatile",
-        temperature: 0.1
+        temperature: 0.1,
+        responseFormat: { type: "json_object" }
       });
-      (baseModel as any).model = "llama-3.3-70b-versatile";
-      const model = baseModel.withStructuredOutput(agentOutputSchema);
 
       // Memory Compression Optimization: Keep only last 3 messages for context history
       const compressedHistory = sessionMemory.recentConversation.slice(-3);
@@ -502,13 +523,20 @@ Output a strict structured JSON matching the schema.`;
       const estimatedPrompt = Math.round((systemInstruction.length + JSON.stringify(compressedHistory).length + text.length) / 4);
       console.log(`🟢 REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: ${estimatedPrompt} tokens)...`);
       
-      agentOutput = await model.invoke(messages);
-      
+      const response = await llm.invoke(messages);
+      rawText = response.content.toString();
+      console.log("Raw LLM Output:", rawText);
+
+      const cleanedJson = rawText.trim().replace(/^```json/, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(cleanedJson);
+      agentOutput = agentOutputSchema.parse(parsed);
+
       promptTokens = estimatedPrompt;
-      const rawText = agentOutput.response || "";
       responseTokens = Math.round(rawText.length / 4);
       totalTokens = promptTokens + responseTokens;
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Groq LLM raw response was:", rawText);
+      console.error("Groq LLM parsing/validation error:", err);
       console.warn("LangChain LLM invoke failed. Falling back to local rules engine.", err);
     }
   }
