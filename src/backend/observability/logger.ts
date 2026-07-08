@@ -17,6 +17,12 @@ export interface AgentLog {
   toolSuccessCount: number;
   toolFailureCount: number;
   health: "HEALTHY" | "WARNING" | "ERROR";
+  
+  // Token Monitoring
+  promptTokens?: number;
+  responseTokens?: number;
+  totalTokens?: number;
+  tokenSavingsLog?: string;
 }
 
 export function logAgentExecution(log: AgentLog) {
@@ -32,6 +38,12 @@ export function logAgentExecution(log: AgentLog) {
   console.log(`⚙️ Current State:   ${log.currentState}`);
   console.log(`🛡️ Guardrail:       ${log.guardrailStatus}`);
   console.log(`📦 Memory Used:     ${log.memoryUsed}`);
+  if (log.totalTokens !== undefined) {
+    console.log(`🪙 Tokens Used:     Prompt: ${log.promptTokens} | Response: ${log.responseTokens} | Total: ${log.totalTokens}`);
+  }
+  if (log.tokenSavingsLog) {
+    console.log(`💡 Token Savings:   ${log.tokenSavingsLog}`);
+  }
 
   if (log.plan && log.plan.length > 0) {
     console.log(`🗒️ Execution Plan:`);
