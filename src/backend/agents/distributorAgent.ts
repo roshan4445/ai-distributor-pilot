@@ -49,8 +49,8 @@ const agentOutputSchema = z.object({
     reminderWhen: z.string().optional(),
     reminderNote: z.string().optional()
   }).optional(),
-  kind: z.enum(["order", "invoice", "ledger", "reminder", "text"]).nullable(),
-  data: z.any().nullable().describe("Payload data object matching the response kind (e.g. for order: { title, items, total, delivery })")
+  kind: z.enum(["order", "invoice", "ledger", "reminder", "text"]).optional(),
+  data: z.any().optional().describe("Payload data object matching the response kind (e.g. for order: { title, items, total, delivery })")
 });
 
 async function resolveDealerId(
