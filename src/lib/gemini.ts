@@ -1,19 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
 import { supabase } from "@/utils/supabase";
 import dotenv from "dotenv";
 import { processAgentRequest } from "../backend/agents/distributorAgent";
 
 dotenv.config();
 
-const apiKey = process.env.GEMINI_API_KEY;
-
-// Create GenAI client or a placeholder if key is missing or not configured
-let aiClient: GoogleGenAI | null = null;
-if (apiKey && apiKey !== "your_gemini_api_key_here") {
-  aiClient = new GoogleGenAI({ apiKey });
-}
-
-
+const apiKey = process.env.GROQ_API_KEY;
 
 export async function runAgentConversation(
   conversationId: string,
@@ -30,10 +21,7 @@ export async function runAgentQuery(q: string): Promise<string> {
 }
 
 export async function runAgentDuesAnalysis(dealersList: any[]): Promise<any[]> {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const isGroq = geminiKey?.startsWith("gsk_");
-
-  if (aiClient && !isGroq) {
+  if (apiKey) {
     const prompt = `You are the AI Collections Underwriter for Kumar Electricals & Distribution.
 We have a list of dealers with outstanding balances.
 For each dealer, analyze their metrics and output:
@@ -45,29 +33,45 @@ Dealers list:
 ${JSON.stringify(dealersList, null, 2)}
 
 Return your analysis as a strict JSON array of objects. Do not include markdown code blocks (like \`\`\`json), just raw JSON. Each object MUST look like:
-{
-  "dealerId": "string",
-  "risk": number,
-  "action": "string",
-  "promise": "string or null"
-}
-`;
+[
+  {
+    "dealerId": "string",
+    "risk": number,
+    "action": "string",
+    "promise": "string or null"
+  }
+]`;
 
     try {
-      const response = await aiClient.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.1
+        })
       });
-
-      const cleaned = response.text || "";
-      const jsonStr = cleaned.trim().replace(/^```json/, "").replace(/```$/, "").trim();
-      return JSON.parse(jsonStr);
+      
+      if (response.ok) {
+        const resData = await response.json();
+        const cleaned = resData.choices?.[0]?.message?.content || "";
+        const jsonStr = cleaned.trim().replace(/^```json/, "").replace(/```$/, "").trim();
+        return JSON.parse(jsonStr);
+      } else {
+        console.error("Groq completions request failed with status:", response.status);
+      }
     } catch (err) {
-      console.error("Gemini dues analysis error, using fallback instead:", err);
+      console.error("Groq dues analysis error, using fallback instead:", err);
     }
   }
 
-  // Resilient rule-based collections analyst engine
+  // Resilient rule-based collections analyst engine fallback
   return dealersList.map(d => {
     let risk = 10;
     let action = "Auto-reminder scheduled";
@@ -85,7 +89,7 @@ Return your analysis as a strict JSON array of objects. Do not include markdown 
     }
 
     const nameStr = d.name || d.dealer || "";
-    if (nameStr.includes("Verma") || nameStr.includes("Vijay")) {
+    if (nameStr.includes("Verma") || nameStr.includes("Vijay") || nameStr.includes("Raj Traders")) {
       promise = "Nov 5 (Post-Diwali)";
     }
 

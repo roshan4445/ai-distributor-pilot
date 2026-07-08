@@ -475,12 +475,14 @@ Output a strict structured JSON matching the schema.`;
   if (!agentOutput && apiKey) {
     try {
       // LangChain LLM Sequence (LCEL) Setup
-      const model = new ChatGroq({
+      const baseModel = new ChatGroq({
         apiKey,
         model: "llama-3.3-70b-versatile",
         modelName: "llama-3.3-70b-versatile",
         temperature: 0.1
-      }).withStructuredOutput(agentOutputSchema);
+      });
+      (baseModel as any).model = "llama-3.3-70b-versatile";
+      const model = baseModel.withStructuredOutput(agentOutputSchema);
 
       // Memory Compression Optimization: Keep only last 3 messages for context history
       const compressedHistory = sessionMemory.recentConversation.slice(-3);
