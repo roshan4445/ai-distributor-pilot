@@ -5,7 +5,7 @@ import { processAgentRequest } from "../backend/agents/distributorAgent";
 
 dotenv.config();
 
-const apiKey = process.env.GROQ_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 
 // Create GenAI client or a placeholder if key is missing or not configured
 let aiClient: GoogleGenAI | null = null;
