@@ -19,6 +19,9 @@ class MockSupabaseQueryBuilder {
   private updateData: any = null;
   private insertData: any = null;
   private isDelete = false;
+  private orderCol: string | null = null;
+  private orderAscending = true;
+  private limitCount: number | null = null;
 
   constructor(table: string) {
     this.table = table;
@@ -56,6 +59,44 @@ class MockSupabaseQueryBuilder {
   lt(col: string, val: any) {
     this.filters.push({ type: "lt", col, val });
     return this;
+  }
+
+  gt(col: string, val: any) {
+    this.filters.push({ type: "gt", col, val });
+    return this;
+  }
+
+  in(col: string, val: any[]) {
+    this.filters.push({ type: "in", col, val });
+    return this;
+  }
+
+  order(col: string, options?: { ascending: boolean }) {
+    this.orderCol = col;
+    this.orderAscending = options?.ascending !== false;
+    return this;
+  }
+
+  limit(num: number) {
+    this.limitCount = num;
+    return this;
+  }
+
+  private buildWhereClause(args: any[]): string {
+    if (this.filters.length === 0) return "";
+    const parts = this.filters.map(f => {
+      if (f.type === "in") {
+        const list = Array.isArray(f.val) ? f.val : [f.val];
+        const placeholders = list.map(() => "?").join(", ");
+        args.push(...list);
+        return `${f.col} IN (${placeholders})`;
+      } else {
+        args.push(f.val);
+        const op = f.type === "eq" ? "=" : f.type === "lt" ? "<" : ">";
+        return `${f.col} ${op} ?`;
+      }
+    });
+    return " WHERE " + parts.join(" AND ");
   }
 
   async maybeSingle() {
@@ -107,13 +148,7 @@ class MockSupabaseQueryBuilder {
 
         let sql = `UPDATE ${this.table} SET ${setKeys.map(k => `${k} = ?`).join(", ")}`;
         const args = [...setVals];
-
-        if (this.filters.length > 0) {
-          sql += " WHERE " + this.filters.map(f => {
-            args.push(f.val);
-            return `${f.col} ${f.type === "eq" ? "=" : "<"} ?`;
-          }).join(" AND ");
-        }
+        sql += this.buildWhereClause(args);
 
         await db.execute({ sql, args });
         return { data: this.updateData, count: 1, error: null };
@@ -122,12 +157,7 @@ class MockSupabaseQueryBuilder {
       if (this.isDelete) {
         let sql = `DELETE FROM ${this.table}`;
         const args: any[] = [];
-        if (this.filters.length > 0) {
-          sql += " WHERE " + this.filters.map(f => {
-            args.push(f.val);
-            return `${f.col} ${f.type === "eq" ? "=" : "<"} ?`;
-          }).join(" AND ");
-        }
+        sql += this.buildWhereClause(args);
         await db.execute({ sql, args });
         return { data: null, count: 0, error: null };
       }
@@ -135,11 +165,13 @@ class MockSupabaseQueryBuilder {
       // SELECT
       let sql = `SELECT * FROM ${this.table}`;
       const args: any[] = [];
-      if (this.filters.length > 0) {
-        sql += " WHERE " + this.filters.map(f => {
-          args.push(f.val);
-          return `${f.col} ${f.type === "eq" ? "=" : "<"} ?`;
-        }).join(" AND ");
+      sql += this.buildWhereClause(args);
+
+      if (this.orderCol) {
+        sql += ` ORDER BY ${this.orderCol} ${this.orderAscending ? "ASC" : "DESC"}`;
+      }
+      if (this.limitCount !== null) {
+        sql += ` LIMIT ${this.limitCount}`;
       }
 
       const queryRes = await db.execute({ sql, args });
