@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -14,6 +14,9 @@ import { useRouter } from "@tanstack/react-router";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/conversations")({
+  beforeLoad: () => {
+    throw redirect({ to: "/" });
+  },
   loader: async () => {
     const [conversations, dealers] = await Promise.all([
       getConversationsList(),
