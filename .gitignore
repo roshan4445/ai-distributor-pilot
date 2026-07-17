@@ -9,6 +9,8 @@ node_modules/
 
 # Outputs & Builds
 .output/
+.vercel/
+.tanstack/
 .wrangler/
 dist/
 .tempmediaStorage/
