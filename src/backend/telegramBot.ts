@@ -44,6 +44,40 @@ async function handleTelegramMessage(botToken: string, message: any) {
   if (!text) return;
 
   const conversationId = `tg-${chatId}`;
+  const cleanText = text.trim().toLowerCase();
+
+  // Reset registration
+  if (cleanText === "/reset") {
+    await supabase.from("conversations").delete().eq("id", conversationId);
+    await sendTelegramMessage(botToken, chatId, "🔄 *Registration Reset.*\n\nPlease reply with your registered *Phone Number* or *Dealer ID* (e.g., `d1`, `d2`, `d3`) to register again.");
+    return;
+  }
+
+  // Switch dealer profile dynamically
+  if (/^d\d+$/.test(cleanText)) {
+    const { data: matchedDealer } = await supabase
+      .from("dealers")
+      .select("*")
+      .eq("id", cleanText)
+      .maybeSingle();
+
+    if (matchedDealer) {
+      await supabase.from("conversations").upsert({
+        id: conversationId,
+        dealer: matchedDealer.name,
+        city: matchedDealer.city,
+        unread: 0,
+        preview: "Registered via Telegram"
+      });
+
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `🎉 *Registration Successful!*\n\nYou are now linked as *${matchedDealer.name}* (${matchedDealer.city}) for Kumar Electricals.\n\nYou can now place orders (e.g. \`order 20 Copper Wire 2.5 sq mm\`) or check dues.`
+      );
+      return;
+    }
+  }
 
   // 1. Check if conversation already exists for this Telegram user
   const { data: convo } = await supabase
@@ -171,7 +205,12 @@ async function handleTelegramMessage(botToken: string, message: any) {
 }
 
 export function startTelegramBot(botToken: string) {
-  if (isPolling) return;
+  const globalState = globalThis as any;
+  if (globalState.isTelegramBotPolling || isPolling) {
+    console.log("[TELEGRAM] Telegram Bot Polling already active on globalState. Skipping duplicate startup.");
+    return;
+  }
+  globalState.isTelegramBotPolling = true;
   isPolling = true;
   console.log("[TELEGRAM] Background Telegram Bot Polling started...");
 
