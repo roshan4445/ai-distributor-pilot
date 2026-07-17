@@ -250,13 +250,16 @@ export async function processAgentRequest(
         const products = dbProducts || [];
 
         const validatedItems = items.map(item => {
-          const match = products.find(p => p.sku.toLowerCase() === item.sku.toLowerCase()) || 
-                        products.find(p => p.name.toLowerCase() === item.name.toLowerCase()) ||
-                        products.find(p => p.name.toLowerCase().includes(item.name.toLowerCase())) ||
-                        products.find(p => item.name.toLowerCase().includes(p.name.toLowerCase()));
+          const itemSku = String(item.sku || "").toLowerCase();
+          const itemName = String(item.name || "").toLowerCase();
+
+          const match = products.find(p => p.sku.toLowerCase() === itemSku) || 
+                        products.find(p => p.name.toLowerCase() === itemName) ||
+                        products.find(p => p.name.toLowerCase().includes(itemName)) ||
+                        products.find(p => itemName.includes(p.name.toLowerCase()));
           
           if (!match) {
-            throw new Error(`Product reference "${item.name}" (SKU: "${item.sku}") was not found in our catalog.`);
+            throw new Error(`Product reference "${item.name || 'Unknown'}" (SKU: "${item.sku || 'Unknown'}") was not found in our catalog.`);
           }
           
           return {
@@ -439,7 +442,7 @@ JSON SCHEMA:
   "intent": "ORDER" | "PAYMENT" | "PAYMENT_PROMISE" | "INVOICE" | "PRODUCT_QUERY" | "BUSINESS_QUERY",
   "confidence": number (between 0 and 1),
   "response": "Polite natural language message responding to the dealer",
-  "toolsUsed": string[],
+  "toolsUsed": ("createOrder" | "recordPayment" | "scheduleReminder")[],
   "toolParameters": {
     "orderItems": [{ "sku": string, "name": string, "qty": number, "price": number }],
     "orderTotal": number,
@@ -555,7 +558,8 @@ JSON SCHEMA:
   let responseText = agentOutput.response || "";
   let kind = agentOutput.kind || "text";
   let data = agentOutput.data || null;
-  const toolsUsed = agentOutput.toolsUsed || [];
+  const allowedTools = ["createOrder", "recordPayment", "scheduleReminder"];
+  const toolsUsed = (agentOutput.toolsUsed || []).filter((t: string) => allowedTools.includes(t));
   const params = agentOutput.toolParameters || {};
 
   // If the agent draft has items, map them to the database items to resolve names/prices/SKUs and prevent NaN rendering
