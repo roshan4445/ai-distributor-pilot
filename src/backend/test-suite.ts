@@ -352,6 +352,138 @@ async function runTests() {
     });
   }
 
+
+  // -------------------------------------------------------------
+  // SCENARIO 10: Missing orderItems parse failure
+  // -------------------------------------------------------------
+  {
+    console.log("--- Scenario 10: Missing orderItems parse failure ---");
+    const convoId = "c0000000-0000-0000-0000-000000000010";
+    const dealerName = "Sri Lakshmi Agencies";
+    const dealerId = "00000000-0000-0000-0000-000000000003";
+
+    await resetConvo(convoId);
+    await restoreDBState(dealerId, startDues);
+
+    // Send a confirm message with NO prior draft in memory.
+    // The fallback rules engine will attempt createOrder with no orderItems/orderTotal.
+    // The agent must return FAILED state, not write a fake order to DB.
+    const { data: ordersBefore } = await supabaseClient
+      .from("orders")
+      .select("id")
+      .eq("dealerId", dealerId);
+    const countBefore = (ordersBefore || []).length;
+
+    const resStr = await processAgentRequest(
+      "confirm order",
+      convoId,
+      dealerName
+    );
+    const res = JSON.parse(resStr);
+
+    // Must NOT be COMPLETED — either FAILED or WAITING_FOR_USER (staleness check may fire)
+    const didNotCompleteOrder = res.state !== "COMPLETED" || res.kind !== "invoice";
+
+    // DB must NOT have a new order row
+    const { data: ordersAfter } = await supabaseClient
+      .from("orders")
+      .select("id")
+      .eq("dealerId", dealerId);
+    const countAfter = (ordersAfter || []).length;
+    const noNewOrder = countAfter === countBefore;
+
+    results.push({
+      scenario: "10. Missing orderItems parse failure",
+      status: (didNotCompleteOrder && noNewOrder) ? "PASS" : "FAIL"
+    });
+  }
+
+  // -------------------------------------------------------------
+  // SCENARIO 11: Duplicate confirm idempotency guard
+  // -------------------------------------------------------------
+  {
+    console.log("--- Scenario 11: Duplicate Confirm Idempotency ---");
+    const convoId = "c0000000-0000-0000-0000-000000000011";
+    const dealerName = "Sri Lakshmi Agencies";
+    const dealerId = "00000000-0000-0000-0000-000000000003";
+
+    await resetConvo(convoId);
+    await restoreDBState(dealerId, startDues);
+
+    // Ensure a conversation row exists (required for FK on messages table used by memory)
+    await supabaseClient.from("conversations").upsert({
+      id: convoId,
+      dealer: dealerName,
+      city: "Madurai",
+      unread: 0,
+      preview: "Idempotency test"
+    });
+
+    // Clear any stale idempotency state for this conversation
+    await supabaseClient.from("conversation_state").delete().eq("conversation_id", convoId);
+
+    // Step 1: Draft an order
+    await processAgentRequest(
+      "Order 10 MCB-32A-SP",
+      convoId,
+      dealerName
+    );
+
+    // Step 2: First confirm — should succeed and create an order
+    const confirm1Str = await processAgentRequest(
+      "confirm order",
+      convoId,
+      dealerName
+    );
+    const confirm1 = JSON.parse(confirm1Str);
+    const firstOk = confirm1.state === "COMPLETED" && confirm1.kind === "invoice";
+
+    // Debug: check what was stored
+    const { data: storedState } = await supabaseClient
+      .from("conversation_state")
+      .select("*")
+      .eq("conversation_id", convoId)
+      .maybeSingle();
+    console.log("[DEBUG] Stored idempotency state after first confirm:", JSON.stringify({
+      hasKey: !!storedState?.last_idempotency_key,
+      hasResponse: !!storedState?.last_response,
+      key: storedState?.last_idempotency_key
+    }));
+
+    // Step 3: Immediately send the exact same confirm message (within 5-second bucket)
+    // The idempotency guard should return the cached response without creating a new order.
+    const { data: ordersMid } = await supabaseClient
+      .from("orders")
+      .select("id")
+      .eq("dealerId", dealerId);
+    const countAfterFirst = (ordersMid || []).length;
+
+    const confirm2Str = await processAgentRequest(
+      "confirm order",
+      convoId,
+      dealerName
+    );
+    const confirm2 = JSON.parse(confirm2Str);
+
+    const { data: ordersAfter } = await supabaseClient
+      .from("orders")
+      .select("id")
+      .eq("dealerId", dealerId);
+    const countAfterSecond = (ordersAfter || []).length;
+
+    // Second confirm must NOT create another order row
+    const noDoubleOrder = countAfterSecond === countAfterFirst;
+    // Second response should be same state as first (cached replay or also COMPLETED)
+    const secondNotFailed = confirm2.state !== "FAILED" || confirm2.state === "COMPLETED";
+
+    console.log(`[DEBUG] Scenario 11: firstOk=${firstOk}, noDoubleOrder=${noDoubleOrder} (${countAfterFirst} -> ${countAfterSecond}), secondState=${confirm2.state}, secondKind=${confirm2.kind}`);
+
+    results.push({
+      scenario: "11. Duplicate Confirm Idempotency",
+      status: (firstOk && noDoubleOrder && secondNotFailed) ? "PASS" : "FAIL"
+    });
+  }
+
   console.log("\n=================================================");
   console.log("📊 REGRESSION TESTS SUMMARY TABLE");
   console.log("=================================================");
@@ -364,3 +496,4 @@ async function runTests() {
 }
 
 runTests().catch(console.error);
+

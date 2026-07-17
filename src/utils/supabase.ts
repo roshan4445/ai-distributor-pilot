@@ -66,6 +66,16 @@ class MockSupabaseQueryBuilder {
     return this;
   }
 
+  gte(col: string, val: any) {
+    this.filters.push({ type: "gte", col, val });
+    return this;
+  }
+
+  lte(col: string, val: any) {
+    this.filters.push({ type: "lte", col, val });
+    return this;
+  }
+
   in(col: string, val: any[]) {
     this.filters.push({ type: "in", col, val });
     return this;
@@ -92,7 +102,7 @@ class MockSupabaseQueryBuilder {
         return `${f.col} IN (${placeholders})`;
       } else {
         args.push(f.val);
-        const op = f.type === "eq" ? "=" : f.type === "lt" ? "<" : ">";
+        const op = f.type === "eq" ? "=" : f.type === "lt" ? "<" : f.type === "gt" ? ">" : f.type === "gte" ? ">=" : f.type === "lte" ? "<=" : "=";
         return `${f.col} ${op} ?`;
       }
     });

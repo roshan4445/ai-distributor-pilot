@@ -177,17 +177,72 @@ export async function processAgentRequest(
     console.warn("Failed to check conversation staleness:", err);
   }
 
-  try {
-    await supabase.from("conversation_state").upsert({
-      conversation_id: conversationId,
-      last_activity_at: new Date().toISOString()
-    });
-  } catch (err) {
-    console.warn("Failed to update last_activity_at:", err);
-  }
-
+  // ==========================================
+  // IDEMPOTENCY GUARD — duplicate-request dedup
+  // ==========================================
+  // Buckets mutating requests into 5-second windows to prevent double-orders/double-payments.
+  // Key = djb2 hash of (conversationId + normalizedText + 5s-bucket).
+  // Stored in conversation_state.last_idempotency_key. Degrades gracefully if columns absent.
+  // IMPORTANT: This must run BEFORE the last_activity_at upsert below, because
+  // SQLite's INSERT OR REPLACE wipes all columns not specified in the upsert,
+  // which would destroy the stored idempotency key/response from the prior request.
   const cleanTextLocal = text.toLowerCase().trim();
   const isConfirmLocal = (cleanTextLocal.includes("confirm") || cleanTextLocal.includes("yes") || cleanTextLocal.includes("agree") || cleanTextLocal.includes("done") || cleanTextLocal.includes("ok") || cleanTextLocal.includes("okay")) && !/\d+/.test(cleanTextLocal);
+  const isMutatingRequest = isConfirmLocal ||
+    cleanTextLocal.includes("paid") ||
+    cleanTextLocal.includes("remitted") ||
+    cleanTextLocal.includes("transferred") ||
+    cleanTextLocal.includes("sent money");
+
+  let idempotencyKey: string | null = null;
+  if (isMutatingRequest) {
+    const bucket = Math.floor(Date.now() / 5000); // 5-second window
+    const rawKey = `${conversationId}::${cleanTextLocal}::${bucket}`;
+    let hash = 5381;
+    for (let i = 0; i < rawKey.length; i++) {
+      hash = ((hash << 5) + hash + rawKey.charCodeAt(i)) | 0; // djb2
+    }
+    idempotencyKey = String(Math.abs(hash));
+    try {
+      const { data: stateRow } = await supabase
+        .from("conversation_state")
+        .select("last_idempotency_key, last_response")
+        .eq("conversation_id", conversationId)
+        .maybeSingle();
+      if (
+        stateRow?.last_idempotency_key === idempotencyKey &&
+        stateRow?.last_response
+      ) {
+        console.warn(`[IDEMPOTENCY] Duplicate request blocked for convo ${conversationId} (key=${idempotencyKey}). Returning cached response.`);
+        // The mock SQLite client auto-parses JSON strings back into objects when reading,
+        // so last_response may be an object or a string depending on the storage backend.
+        const cached = stateRow.last_response;
+        return typeof cached === "string" ? cached : JSON.stringify(cached);
+      }
+      // Reserve key slot immediately so concurrent racing requests also get deduped.
+      // This also updates last_activity_at, so we skip the standalone upsert below.
+      await supabase.from("conversation_state").upsert({
+        conversation_id: conversationId,
+        last_idempotency_key: idempotencyKey,
+        last_activity_at: new Date().toISOString()
+      });
+    } catch (idemErr) {
+      console.warn("[IDEMPOTENCY] Guard check failed, proceeding without dedup protection:", idemErr);
+    }
+  }
+
+  // Update last_activity_at for non-mutating requests only.
+  // Mutating requests already updated it in the idempotency guard above.
+  if (!isMutatingRequest) {
+    try {
+      await supabase.from("conversation_state").upsert({
+        conversation_id: conversationId,
+        last_activity_at: new Date().toISOString()
+      });
+    } catch (err) {
+      console.warn("Failed to update last_activity_at:", err);
+    }
+  }
 
   if (isStale && isConfirmLocal) {
     transitionTo("WAITING_FOR_USER");
@@ -363,11 +418,29 @@ export async function processAgentRequest(
 
         const calculatedTotal = validatedItems.reduce((acc, item) => acc + (item.qty * item.price), 0);
 
-        // Deduct inventory
+        // Atomic stock deduction — availability guard
+        // Step 1: Read stock only if >= qty (confirms sufficient inventory).
+        // Step 2: Deduct stock. Safe in single-connection environments (SQLite/test).
+        // NOTE: For production Postgres/Supabase under concurrent load, replace with
+        // an RPC function: UPDATE products SET stock = stock - $qty
+        //                   WHERE sku = $sku AND stock >= $qty RETURNING stock;
+        // This gives true atomic deduction with row-level locking.
         for (const item of validatedItems) {
-          const { data: prod } = await supabase.from("products").select("stock").eq("sku", item.sku).maybeSingle();
-          const cur = prod?.stock || 0;
-          await supabase.from("products").update({ stock: Math.max(0, cur - item.qty) }).eq("sku", item.sku);
+          const { data: prod } = await supabase
+            .from("products")
+            .select("stock")
+            .eq("sku", item.sku)
+            .gte("stock", item.qty) // only returns row if stock >= qty
+            .maybeSingle();
+
+          if (!prod) {
+            throw new Error(`Insufficient stock for SKU ${item.sku}: requested ${item.qty} but stock is below that level.`);
+          }
+
+          await supabase
+            .from("products")
+            .update({ stock: prod.stock - item.qty })
+            .eq("sku", item.sku);
         }
 
         // Insert Order
@@ -930,12 +1003,36 @@ JSON SCHEMA:
   try {
     for (const toolName of toolsUsed) {
       if (toolName === "createOrder") {
-        const orderItems = params.orderItems || data?.items || [
-          { name: "MCB 32A Single Pole", qty: 20, price: 245, sku: "MCB-32A-SP" },
-          { name: "Modular Switch 6A", qty: 15, price: 78, sku: "SW-MOD-6A" }
-        ];
-        const orderTotal = params.orderTotal || data?.total || 6070;
-        
+        // SAFETY: Never fabricate order data. If the LLM/rules engine did not provide
+        // real items and a total, refuse execution rather than writing fake records to DB.
+        const orderItems = params.orderItems || data?.items;
+        const orderTotal = params.orderTotal || data?.total;
+
+        if (!orderItems || orderItems.length === 0 || !orderTotal) {
+          toolFailureCount++;
+          executionError = "PARSE_FAILURE: createOrder was requested but orderItems or orderTotal are missing. Cannot fabricate transaction data.";
+          console.error(`[PARSE_FAILURE] createOrder missing data for convo ${conversationId}. params:`, params, "data:", data);
+          logAgentExecution({
+            traceId,
+            timestamp,
+            intent,
+            confidence,
+            plan: plan.steps,
+            toolsUsed: toolsExecuted,
+            executionTimeMs: Date.now() - startTime,
+            status: "ERROR",
+            errors: ["PARSE_FAILURE: createOrder called with no orderItems/orderTotal — refusing to fabricate records"],
+            currentState: "EXECUTING",
+            reflectionResult: { success: false, summary: "Parse failure: missing order data" },
+            memoryUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)} MB`,
+            guardrailStatus: "PASSED",
+            toolSuccessCount,
+            toolFailureCount,
+            health: "ERROR"
+          });
+          break;
+        }
+
         const toolResult = await createOrderTool.invoke({
           items: orderItems,
           total: orderTotal
@@ -957,7 +1054,34 @@ JSON SCHEMA:
       }
 
       if (toolName === "recordPayment") {
-        const amount = params.paymentAmount || data?.paid || data?.paidAmount || 20000;
+        // SAFETY: Never fabricate payment amounts.
+        const amount = params.paymentAmount || data?.paid || data?.paidAmount;
+
+        if (!amount || amount <= 0) {
+          toolFailureCount++;
+          executionError = "PARSE_FAILURE: recordPayment was requested but paymentAmount is missing or zero.";
+          console.error(`[PARSE_FAILURE] recordPayment missing amount for convo ${conversationId}. params:`, params);
+          logAgentExecution({
+            traceId,
+            timestamp,
+            intent,
+            confidence,
+            plan: plan.steps,
+            toolsUsed: toolsExecuted,
+            executionTimeMs: Date.now() - startTime,
+            status: "ERROR",
+            errors: ["PARSE_FAILURE: recordPayment called with no paymentAmount — refusing to fabricate payment records"],
+            currentState: "EXECUTING",
+            reflectionResult: { success: false, summary: "Parse failure: missing payment amount" },
+            memoryUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)} MB`,
+            guardrailStatus: "PASSED",
+            toolSuccessCount,
+            toolFailureCount,
+            health: "ERROR"
+          });
+          break;
+        }
+
         const toolResult = await recordPaymentTool.invoke({
           paidAmount: amount
         });
@@ -992,8 +1116,35 @@ JSON SCHEMA:
       }
 
       if (toolName === "scheduleReminder") {
-        const when = params.reminderWhen || "Nov 5, 10:00 AM";
+        // SAFETY: Never fabricate reminder dates.
+        const when = params.reminderWhen;
         const note = params.reminderNote || "Collections payment follow up";
+
+        if (!when) {
+          toolFailureCount++;
+          executionError = "PARSE_FAILURE: scheduleReminder was requested but reminderWhen is missing.";
+          console.error(`[PARSE_FAILURE] scheduleReminder missing 'when' for convo ${conversationId}. params:`, params);
+          logAgentExecution({
+            traceId,
+            timestamp,
+            intent,
+            confidence,
+            plan: plan.steps,
+            toolsUsed: toolsExecuted,
+            executionTimeMs: Date.now() - startTime,
+            status: "ERROR",
+            errors: ["PARSE_FAILURE: scheduleReminder called with no reminderWhen — refusing to schedule with fabricated date"],
+            currentState: "EXECUTING",
+            reflectionResult: { success: false, summary: "Parse failure: missing reminder date" },
+            memoryUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)} MB`,
+            guardrailStatus: "PASSED",
+            toolSuccessCount,
+            toolFailureCount,
+            health: "ERROR"
+          });
+          break;
+        }
+
         const toolResult = await scheduleReminderTool.invoke({
           when,
           note
@@ -1213,12 +1364,12 @@ JSON SCHEMA:
     text: responseText,
     kind,
     data: kind === "reminder" ? {
-      when: data?.when || params?.reminderWhen || "Nov 5, 10:00 AM",
+      when: data?.when || params?.reminderWhen,
       note: data?.note || params?.reminderNote || "Collections payment follow up",
       status: "pending",
       dealerId,
       conversationId,
-      dueDate: calculateDueDate(data?.when || params?.reminderWhen || "Nov 5, 10:00 AM")
+      dueDate: calculateDueDate(data?.when || params?.reminderWhen)
     } : (data ? { ...data, invoice: createdInvoiceId || data.invoice || sessionMemory.lastInvoiceId } : null)
   };
 
@@ -1245,6 +1396,20 @@ JSON SCHEMA:
     tokenSavingsLog
   });
 
+  // Persist completed response for idempotency replay on duplicate requests
+  if (idempotencyKey) {
+    try {
+      await supabase.from("conversation_state").upsert({
+        conversation_id: conversationId,
+        last_idempotency_key: idempotencyKey,
+        last_response: JSON.stringify(finalOutput),
+        last_activity_at: new Date().toISOString()
+      });
+    } catch (_) {
+      // Non-fatal: idempotency store failure does not block the response
+    }
+  }
+
   return JSON.stringify(finalOutput);
 }
 
@@ -1262,7 +1427,7 @@ async function runFallbackRulesEngine(
   const sessionMemory = await getMemory(conversationId);
 
   // 0. Correction Trigger
-  const isCorrection = lower.includes("change") || lower.includes("update") || lower.includes("instead") || lower.includes("modify") || lower.includes("remove") || lower.includes("add") || lower.includes("rehne do") || lower.includes("give") || lower.includes("give me") || lower.includes("then");
+  const isCorrection = lower.includes("change") || lower.includes("update") || lower.includes("instead") || lower.includes("modify") || lower.includes("adjust") || lower.includes("remove") || lower.includes("add") || lower.includes("rehne do") || lower.includes("give") || lower.includes("give me") || lower.includes("then");
   if (isCorrection && sessionMemory.lastDraft && sessionMemory.lastDraft.items) {
     const items = sessionMemory.lastDraft.items.map((it: any) => ({ ...it }));
     let updated = false;
@@ -1336,15 +1501,35 @@ async function runFallbackRulesEngine(
     }
   }
 
+  // Acknowledge adjustment intent when no quantity changes are listed yet
+  const wantsToAdjustWithoutQty = (lower.includes("adjust") || lower.includes("change") || lower.includes("update") || lower.includes("modify")) && !/\d+/.test(lower);
+  if (wantsToAdjustWithoutQty) {
+    return JSON.stringify({
+      intent: "ORDER",
+      confidence: 0.95,
+      toolsUsed: [],
+      response: "Sure sir, please specify the new quantities or items you would like to change in your order draft.",
+      kind: "text",
+      data: null
+    });
+  }
+
   // 1. Confirm/Done Trigger
   if ((lower.includes("confirm") || lower.includes("yes") || lower.includes("agree") || lower.includes("done") || lower.includes("ok") || lower.includes("okay") || lower.includes("place")) && !/\d+/.test(lower)) {
-    const lastDraft = sessionMemory.lastDraft || {
-      total: 6070,
-      items: [
-        { name: "MCB 32A Single Pole", qty: 20, price: 245, sku: "MCB-32A-SP" },
-        { name: "Modular Switch 6A", qty: 15, price: 78, sku: "SW-MOD-6A" }
-      ]
-    };
+    // SAFETY: If there is no prior draft in memory, refuse to fabricate order data.
+    // Ask the dealer to resend their order details instead.
+    if (!sessionMemory.lastDraft || !sessionMemory.lastDraft.items || sessionMemory.lastDraft.items.length === 0) {
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: "Sir, I don't have a pending order draft to confirm. Could you please resend your order details so I can prepare a new draft for you?",
+        kind: "text",
+        data: null
+      });
+    }
+
+    const lastDraft = sessionMemory.lastDraft;
 
     return JSON.stringify({
       intent: "ORDER",

@@ -123,9 +123,15 @@ async function initDb() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS conversation_state (
       conversation_id TEXT PRIMARY KEY,
-      last_activity_at TEXT NOT NULL
+      last_activity_at TEXT NOT NULL,
+      last_idempotency_key TEXT,
+      last_response TEXT
     )
   `);
+
+  // Migration: add idempotency columns if they don't exist on an older table
+  try { await db.execute("ALTER TABLE conversation_state ADD COLUMN last_idempotency_key TEXT"); } catch (_) { /* column already exists */ }
+  try { await db.execute("ALTER TABLE conversation_state ADD COLUMN last_response TEXT"); } catch (_) { /* column already exists */ }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS stock_alerts (
