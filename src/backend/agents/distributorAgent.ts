@@ -1682,6 +1682,45 @@ async function runFallbackRulesEngine(
       finalMatched.push(...topCatMatches);
     }
 
+    // ====================================================================
+    // CLARIFICATION GUARDS — ask before assuming
+    // ====================================================================
+
+    // Guard 1: No quantity specified — ask how many
+    const hasQuantity = /\b\d+\b/.test(lower);
+
+    // Guard 2: Multiple products matched with equal scores — ask which one
+    if (finalMatched.length > 1) {
+      const topScore = Math.max(...finalMatched.map(m => m.score));
+      const topMatches = finalMatched.filter(m => m.score === topScore);
+      if (topMatches.length > 1) {
+        const optionsList = topMatches.map(m =>
+          `**${m.product.name}** (${m.product.sku}) — ₹${m.product.price}`
+        ).join("\n• ");
+        return JSON.stringify({
+          intent: "ORDER",
+          confidence: 0.75,
+          toolsUsed: [],
+          response: `Sir, we have multiple products matching your request:\n• ${optionsList}\n\nWhich one would you like${hasQuantity ? "" : ", and how many"}?`,
+          kind: "text",
+          data: null
+        });
+      }
+    }
+
+    // Guard 3: Product matched but no quantity — ask how many
+    if (finalMatched.length > 0 && !hasQuantity) {
+      const productNames = finalMatched.map(m => `**${m.product.name}**`).join(", ");
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: `Yes sir, ${productNames} is available in stock! How many units would you like to order?`,
+        kind: "text",
+        data: null
+      });
+    }
+
     // Category ambiguity check
     const has32 = finalMatched.some(m => m.product.sku === "MCB-32A-SP");
     const has16 = finalMatched.some(m => m.product.sku === "MCB-16A-SP");
@@ -1703,11 +1742,15 @@ async function runFallbackRulesEngine(
         total += m.qty * m.product.price;
       }
     } else {
-      const def = products.find(p => p.sku === "MCB-32A-SP");
-      if (def) {
-        items.push({ sku: def.sku, name: def.name, qty: 20, price: def.price });
-        total += 20 * def.price;
-      }
+      // No product matched — ask what they want instead of defaulting
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.65,
+        toolsUsed: [],
+        response: "Sir, I wasn't able to identify the specific product from your message. Could you please mention the product name or SKU code? For example: MCB 32A, House Wire 2.5mm, Modular Switch 6A, etc.",
+        kind: "text",
+        data: null
+      });
     }
 
     // Save draft in session memory
