@@ -285,7 +285,7 @@ export async function processAgentRequest(
           dealerName,
           total: calculatedTotal,
           status: "processing",
-          placedAt: "Just now",
+          placedAt: new Date().toISOString(),
           aiNote: `Confirmed by LangChain orchestrator (${traceId}).`
         });
 

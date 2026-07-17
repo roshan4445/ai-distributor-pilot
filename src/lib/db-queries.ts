@@ -5,6 +5,61 @@ import { runAgentConversation, runAgentQuery, runAgentDuesAnalysis } from "./gem
 // Helper dummy ensureDb to keep existing codebase compatibility
 export async function ensureDb() {}
 
+export function isTodayIST(dateInput: string) {
+  if (!dateInput.includes("T") && isNaN(Date.parse(dateInput))) {
+    return dateInput.includes("min") || 
+           dateInput.includes("hour") || 
+           dateInput.includes("Today") ||
+           dateInput.includes("now");
+  }
+  const date = new Date(dateInput);
+  try {
+    const istDateString = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    const todayISTString = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    return istDateString === todayISTString;
+  } catch (e) {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  }
+}
+
+export function formatRelativeTime(dateInput: string) {
+  if (!dateInput.includes("T") && isNaN(Date.parse(dateInput))) {
+    return dateInput;
+  }
+  const date = new Date(dateInput);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.round(diffMs / 60000);
+  const diffHours = Math.round(diffMs / 3600000);
+  
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) {
+    try {
+      const dateIST = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+      const nowIST = now.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+      if (dateIST === nowIST) {
+        return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
+      }
+    } catch (e) {}
+  }
+  
+  try {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const dateIST = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    const yesterdayIST = yesterday.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    if (dateIST === yesterdayIST) {
+      return "Yesterday";
+    }
+  } catch (e) {}
+  
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
 export const getDashboardData = createServerFn({ method: "GET" }).handler(async () => {
   const [
     { data: dealers },
@@ -28,12 +83,7 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
   const pendingDues = dealersList.reduce((sum, row) => sum + Number(row.pending), 0);
   const inventoryAlerts = productsList.filter(row => Number(row.stock) < Number(row.min)).length;
   
-  const ordersToday = ordersList.filter(row => 
-    String(row.placedAt).includes("min") || 
-    String(row.placedAt).includes("hour") || 
-    String(row.placedAt).includes("Today") ||
-    String(row.placedAt).includes("now")
-  );
+  const ordersToday = ordersList.filter(row => isTodayIST(String(row.placedAt)));
 
   const revenueToday = ordersToday.reduce((sum, row) => sum + Number(row.total), 0);
 
@@ -156,7 +206,7 @@ export const getDealerById = createServerFn({ method: "GET" })
         dealer: String(o.dealerName),
         total: Number(o.total),
         status: String(o.status) as "processing" | "packed" | "dispatched" | "delivered",
-        placedAt: String(o.placedAt),
+        placedAt: formatRelativeTime(String(o.placedAt)),
         aiNote: String(o.aiNote),
         items: [],
       })),
@@ -213,7 +263,7 @@ export const getOrders = createServerFn({ method: "GET" }).handler(async () => {
     dealer: String(row.dealerName),
     total: Number(row.total),
     status: String(row.status) as "processing" | "packed" | "dispatched" | "delivered",
-    placedAt: String(row.placedAt),
+    placedAt: formatRelativeTime(String(row.placedAt)),
     aiNote: String(row.aiNote),
     items: (((row as any).order_items as any[]) || []).map(it => ({
       name: String(it.name),
@@ -410,7 +460,7 @@ export const confirmOrderAction = createServerFn({ method: "POST" })
       dealerName,
       total: data.total,
       status: "processing",
-      placedAt: "1 min ago",
+      placedAt: new Date().toISOString(),
       aiNote: "Confirmed from live chat conversation."
     });
 
