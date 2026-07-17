@@ -132,6 +132,10 @@ function ConversationsPage() {
   const [activeInvoice, setActiveInvoice] = useState<any | null>(null);
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
   const [pipelineStep, setPipelineStep] = useState(0);
+  const [isDev, setIsDev] = useState(false);
+  useEffect(() => {
+    setIsDev(typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"));
+  }, []);
 
   // Polling loop to auto-refresh dealer Telegram chats
   useEffect(() => {
@@ -441,159 +445,161 @@ function ConversationsPage() {
         </section>
 
         {/* Right context - AI Agent Platform Observability Panel */}
-        <aside className="hidden xl:flex w-80 shrink-0 border-l border-border bg-slate-950 text-slate-100 flex-col overflow-y-auto divide-y divide-slate-900">
-          {/* 1. AI AGENT STATUS CARD */}
-          <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Agent Status</span>
-              <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full text-[10px] font-bold text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success animate-ping" />
-                <span>{isSending ? "PROCESSING" : "ACTIVE"}</span>
+        {isDev && (
+          <aside className="hidden xl:flex w-80 shrink-0 border-l border-border bg-slate-950 text-slate-100 flex-col overflow-y-auto divide-y divide-slate-900">
+            {/* 1. AI AGENT STATUS CARD */}
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Agent Status</span>
+                <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full text-[10px] font-bold text-success">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-ping" />
+                  <span>{isSending ? "PROCESSING" : "ACTIVE"}</span>
+                </div>
+              </div>
+              
+              <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-4 space-y-3.5 shadow-inner">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                  <div>
+                    <div className="text-[9px] uppercase font-bold text-slate-500">Agent Name</div>
+                    <div className="text-[12px] font-semibold text-slate-200">Distributor Operations Agent</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <div className="text-[9px] uppercase font-bold text-slate-500">Model</div>
+                    <div className="font-semibold text-slate-300">Llama 3.3 70B</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] uppercase font-bold text-slate-500">Framework</div>
+                    <div className="font-semibold text-slate-300">LangChain</div>
+                  </div>
+                </div>
+                <div className="border-t border-slate-900 pt-3">
+                  <div className="text-[9px] uppercase font-bold text-slate-500 mb-1.5">Architecture Core</div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-400">
+                    <div className="flex items-center gap-1.5">✓ Guardrails</div>
+                    <div className="flex items-center gap-1.5">✓ Planner</div>
+                    <div className="flex items-center gap-1.5">✓ Memory</div>
+                    <div className="flex items-center gap-1.5">✓ Tool Calling</div>
+                    <div className="flex items-center gap-1.5">✓ Reflection</div>
+                    <div className="flex items-center gap-1.5">✓ Observability</div>
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-4 space-y-3.5 shadow-inner">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                <div>
-                  <div className="text-[9px] uppercase font-bold text-slate-500">Agent Name</div>
-                  <div className="text-[12px] font-semibold text-slate-200">Distributor Operations Agent</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-[11px]">
-                <div>
-                  <div className="text-[9px] uppercase font-bold text-slate-500">Model</div>
-                  <div className="font-semibold text-slate-300">Llama 3.3 70B</div>
-                </div>
-                <div>
-                  <div className="text-[9px] uppercase font-bold text-slate-500">Framework</div>
-                  <div className="font-semibold text-slate-300">LangChain</div>
-                </div>
-              </div>
-              <div className="border-t border-slate-900 pt-3">
-                <div className="text-[9px] uppercase font-bold text-slate-500 mb-1.5">Architecture Core</div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-400">
-                  <div className="flex items-center gap-1.5">✓ Guardrails</div>
-                  <div className="flex items-center gap-1.5">✓ Planner</div>
-                  <div className="flex items-center gap-1.5">✓ Memory</div>
-                  <div className="flex items-center gap-1.5">✓ Tool Calling</div>
-                  <div className="flex items-center gap-1.5">✓ Reflection</div>
-                  <div className="flex items-center gap-1.5">✓ Observability</div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* If sending, show active logs */}
-          {isSending ? (
-            <>
-              {/* 2. LIVE EXECUTION PIPELINE */}
-              <div className="p-5 space-y-4">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Live Execution Pipeline</div>
-                <div className="space-y-3 text-[12px] text-slate-300">
-                  <PipelineStep icon="🛡" label="Running Guardrails..." status={pipelineStep >= 1 ? "done" : pipelineStep === 0 ? "active" : "pending"} />
-                  <PipelineStep icon="🧠" label="Creating Execution Plan..." status={pipelineStep >= 2 ? "done" : pipelineStep === 1 ? "active" : "pending"} />
-                  <PipelineStep icon="🤖" label="AI Reasoning..." status={pipelineStep >= 3 ? "done" : pipelineStep === 2 ? "active" : "pending"} />
-                  <PipelineStep icon="🔧" label="Calling Business Tools..." status={pipelineStep >= 4 ? "done" : pipelineStep === 3 ? "active" : "pending"} />
-                  <PipelineStep icon="🔍" label="Post-Execution Reflection..." status={pipelineStep >= 5 ? "done" : pipelineStep === 4 ? "active" : "pending"} />
-                  <PipelineStep icon="✅" label="Completed Successfully" status={pipelineStep >= 6 ? "done" : pipelineStep === 5 ? "active" : "pending"} />
-                </div>
-              </div>
-
-              {/* 3. EXECUTION PLAN PANEL */}
-              {pipelineStep >= 1 && (
+            {/* If sending, show active logs */}
+            {isSending ? (
+              <>
+                {/* 2. LIVE EXECUTION PIPELINE */}
                 <div className="p-5 space-y-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Execution Plan</div>
-                  <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-3.5 space-y-2">
-                    <div className="text-[11.5px] font-semibold text-primary">{livePlan.goal}</div>
-                    <div className="space-y-1.5 text-[11px] text-slate-400">
-                      {livePlan.steps.map((step, idx) => {
-                        const stepActive = pipelineStep >= (idx + 1);
-                        return (
-                          <div key={idx} className={stepActive ? "text-success font-medium" : "text-slate-300 font-medium"}>
-                            {stepActive ? "✓" : "○"} {step}
-                          </div>
-                        );
-                      })}
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Live Execution Pipeline</div>
+                  <div className="space-y-3 text-[12px] text-slate-300">
+                    <PipelineStep icon="🛡" label="Running Guardrails..." status={pipelineStep >= 1 ? "done" : pipelineStep === 0 ? "active" : "pending"} />
+                    <PipelineStep icon="🧠" label="Creating Execution Plan..." status={pipelineStep >= 2 ? "done" : pipelineStep === 1 ? "active" : "pending"} />
+                    <PipelineStep icon="🤖" label="AI Reasoning..." status={pipelineStep >= 3 ? "done" : pipelineStep === 2 ? "active" : "pending"} />
+                    <PipelineStep icon="🔧" label="Calling Business Tools..." status={pipelineStep >= 4 ? "done" : pipelineStep === 3 ? "active" : "pending"} />
+                    <PipelineStep icon="🔍" label="Post-Execution Reflection..." status={pipelineStep >= 5 ? "done" : pipelineStep === 4 ? "active" : "pending"} />
+                    <PipelineStep icon="✅" label="Completed Successfully" status={pipelineStep >= 6 ? "done" : pipelineStep === 5 ? "active" : "pending"} />
+                  </div>
+                </div>
+
+                {/* 3. EXECUTION PLAN PANEL */}
+                {pipelineStep >= 1 && (
+                  <div className="p-5 space-y-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Execution Plan</div>
+                    <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-3.5 space-y-2">
+                      <div className="text-[11.5px] font-semibold text-primary">{livePlan.goal}</div>
+                      <div className="space-y-1.5 text-[11px] text-slate-400">
+                        {livePlan.steps.map((step, idx) => {
+                          const stepActive = pipelineStep >= (idx + 1);
+                          return (
+                            <div key={idx} className={stepActive ? "text-success font-medium" : "text-slate-300 font-medium"}>
+                              {stepActive ? "✓" : "○"} {step}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. AGENT MONITOR */}
+                <div className="p-5 space-y-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Agent Monitor</div>
+                  <div className="space-y-2 text-[11px] text-slate-400">
+                    <MonitorRow label="Current State" value={pipelineStep === 0 ? "VALIDATING" : pipelineStep === 1 ? "PLANNING" : pipelineStep === 2 ? "THINKING" : pipelineStep === 3 ? "EXECUTING" : pipelineStep === 4 ? "REFLECTING" : "COMPLETED"} tone="info" />
+                    <MonitorRow label="Guardrail Status" value={pipelineStep >= 1 ? "PASSED" : "VALIDATING..."} tone={pipelineStep >= 1 ? "success" : "warning"} />
+                    <MonitorRow label="Planner Status" value={pipelineStep >= 2 ? "PLAN GENERATED" : "PLANNING..."} tone={pipelineStep >= 2 ? "success" : "warning"} />
+                    <MonitorRow label="Confidence" value="98%" tone="success" />
+                    <MonitorRow 
+                      label="Tools Active" 
+                      value={
+                        pipelineStep === 3 
+                          ? (activeQueryText.toLowerCase().includes("pay") || activeQueryText.toLowerCase().includes("paid") ? "recordPayment()" : "createOrder()") 
+                          : pipelineStep > 3 
+                            ? (activeQueryText.toLowerCase().includes("pay") || activeQueryText.toLowerCase().includes("paid") ? "recordPayment() (Done)" : "createOrder() (Done)") 
+                            : "None"
+                      } 
+                    />
+                    <MonitorRow label="Reflection Status" value={pipelineStep >= 5 ? "HEALTHY" : "WAITING..."} tone={pipelineStep >= 5 ? "success" : "warning"} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* 7. MEMORY INDICATOR */}
+                <div className="p-5 space-y-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Conversation Memory</div>
+                  <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Memory Status</span>
+                      <span className="text-success font-semibold">LOADED</span>
+                    </div>
+                    <div className="border-t border-slate-900 pt-2 space-y-2 text-[12px]">
+                      <div>
+                        <div className="text-[9px] text-slate-500 uppercase font-bold">Active Dealer</div>
+                        <div className="font-semibold text-slate-300">{active.dealer}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-500 uppercase font-bold">Last Active Order</div>
+                        <div className="font-semibold text-slate-300">{active.memory?.lastOrderId ? "o-" + active.memory.lastOrderId.substring(0, 8) : active.memory?.lastInvoiceId || "None"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-500 uppercase font-bold">Pending Context</div>
+                        <div className="font-semibold text-slate-300 truncate">{active.memory?.pendingClarification || "No outstanding queries"}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
 
-              {/* 4. AGENT MONITOR */}
-              <div className="p-5 space-y-4">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Agent Monitor</div>
-                <div className="space-y-2 text-[11px] text-slate-400">
-                  <MonitorRow label="Current State" value={pipelineStep === 0 ? "VALIDATING" : pipelineStep === 1 ? "PLANNING" : pipelineStep === 2 ? "THINKING" : pipelineStep === 3 ? "EXECUTING" : pipelineStep === 4 ? "REFLECTING" : "COMPLETED"} tone="info" />
-                  <MonitorRow label="Guardrail Status" value={pipelineStep >= 1 ? "PASSED" : "VALIDATING..."} tone={pipelineStep >= 1 ? "success" : "warning"} />
-                  <MonitorRow label="Planner Status" value={pipelineStep >= 2 ? "PLAN GENERATED" : "PLANNING..."} tone={pipelineStep >= 2 ? "success" : "warning"} />
-                  <MonitorRow label="Confidence" value="98%" tone="success" />
-                  <MonitorRow 
-                    label="Tools Active" 
-                    value={
-                      pipelineStep === 3 
-                        ? (activeQueryText.toLowerCase().includes("pay") || activeQueryText.toLowerCase().includes("paid") ? "recordPayment()" : "createOrder()") 
-                        : pipelineStep > 3 
-                          ? (activeQueryText.toLowerCase().includes("pay") || activeQueryText.toLowerCase().includes("paid") ? "recordPayment() (Done)" : "createOrder() (Done)") 
-                          : "None"
-                    } 
-                  />
-                  <MonitorRow label="Reflection Status" value={pipelineStep >= 5 ? "HEALTHY" : "WAITING..."} tone={pipelineStep >= 5 ? "success" : "warning"} />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* 7. MEMORY INDICATOR */}
-              <div className="p-5 space-y-4">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Conversation Memory</div>
-                <div className="bg-slate-900/60 border border-slate-900 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500">Memory Status</span>
-                    <span className="text-success font-semibold">LOADED</span>
-                  </div>
-                  <div className="border-t border-slate-900 pt-2 space-y-2 text-[12px]">
-                    <div>
-                      <div className="text-[9px] text-slate-500 uppercase font-bold">Active Dealer</div>
-                      <div className="font-semibold text-slate-300">{active.dealer}</div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] text-slate-500 uppercase font-bold">Last Active Order</div>
-                      <div className="font-semibold text-slate-300">{active.memory?.lastOrderId ? "o-" + active.memory.lastOrderId.substring(0, 8) : active.memory?.lastInvoiceId || "None"}</div>
-                    </div>
-                    <div>
-                      <div className="text-[9px] text-slate-500 uppercase font-bold">Pending Context</div>
-                      <div className="font-semibold text-slate-300 truncate">{active.memory?.pendingClarification || "No outstanding queries"}</div>
-                    </div>
+                {/* Regular Dealer Context Panel */}
+                <div className="p-5 space-y-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Dealer Profile</div>
+                  <div className="space-y-3 text-[12px]">
+                    <StatRowDark label="Registered Name" value={active.dealer} />
+                    <StatRowDark label="Base Location" value={active.city} />
+                    <StatRowDark label="Trust Rank" value={`${dealer.trust}%`} tone={dealer.trust >= 85 ? "success" : "warning"} />
+                    <StatRowDark label="Outstanding dues" value={fmt(dealer.pending)} tone={dealer.pending > 0 ? "warning" : "success"} />
+                    <StatRowDark label="Lifetime Business" value={fmt(dealer.lifetime)} />
+                    <StatRowDark label="Avg. Payment Cycle" value={`${dealer.avgPaymentDays} days`} />
                   </div>
                 </div>
-              </div>
 
-              {/* Regular Dealer Context Panel */}
-              <div className="p-5 space-y-4">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Dealer Profile</div>
-                <div className="space-y-3 text-[12px]">
-                  <StatRowDark label="Registered Name" value={active.dealer} />
-                  <StatRowDark label="Base Location" value={active.city} />
-                  <StatRowDark label="Trust Rank" value={`${dealer.trust}%`} tone={dealer.trust >= 85 ? "success" : "warning"} />
-                  <StatRowDark label="Outstanding dues" value={fmt(dealer.pending)} tone={dealer.pending > 0 ? "warning" : "success"} />
-                  <StatRowDark label="Lifetime Business" value={fmt(dealer.lifetime)} />
-                  <StatRowDark label="Avg. Payment Cycle" value={`${dealer.avgPaymentDays} days`} />
+                {/* AI note */}
+                <div className="p-5">
+                  <div className="rounded-xl border border-slate-900 bg-slate-900/40 p-4 space-y-2">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary"><Sparkles className="h-3.5 w-3.5" /> Recommendations</div>
+                    <p className="text-[11.5px] text-slate-400 leading-relaxed">
+                      Account trust is rated high. Weekly order volume is stable. Consider extending credit limits for upcoming Diwali orders to capture billing growth.
+                    </p>
+                  </div>
                 </div>
-              </div>
-
-              {/* AI note */}
-              <div className="p-5">
-                <div className="rounded-xl border border-slate-900 bg-slate-900/40 p-4 space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary"><Sparkles className="h-3.5 w-3.5" /> Recommendations</div>
-                  <p className="text-[11.5px] text-slate-400 leading-relaxed">
-                    Account trust is rated high. Weekly order volume is stable. Consider extending credit limits for upcoming Diwali orders to capture billing growth.
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-        </aside>
+              </>
+            )}
+          </aside>
+        )}
       </div>
       <AnimatePresence>
         {activeInvoice && (
