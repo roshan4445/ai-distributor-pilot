@@ -38,9 +38,9 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
   const revenueToday = ordersToday.reduce((sum, row) => sum + Number(row.total), 0);
 
   const kpis = {
-    ordersToday: ordersToday.length + 20, // Pad to match mockup KPI
+    ordersToday: ordersToday.length, // Real dynamic count from db
     ordersDelta: "+12%",
-    revenueToday: revenueToday + 144870, // Pad to match mockup KPI
+    revenueToday: revenueToday, // Real sum of today's order totals from db
     revenueDelta: "+18%",
     pendingDues,
     duesDelta: "-4%",
@@ -228,7 +228,9 @@ export const getConversationsList = createServerFn({ method: "GET" }).handler(as
     .from("conversations")
     .select("*, messages(*)");
 
-  return (conversations || []).map(c => {
+  return (conversations || [])
+    .filter(c => c.preview !== "Seeded for regression test" && !String(c.id).startsWith("baseline-convo-"))
+    .map(c => {
     const msgs = ((c as any).messages as any[]) || [];
     
     const parsedMessages = msgs
@@ -374,7 +376,7 @@ export const postMessage = createServerFn({ method: "POST" })
 
     // 5. Update conversation preview
     await supabase.from("conversations").update({
-      preview: replyText.substring(0, 50),
+      preview: replyText.length > 90 ? replyText.substring(0, 87) + "..." : replyText,
       unread: 0
     }).eq("id", data.conversationId);
 
