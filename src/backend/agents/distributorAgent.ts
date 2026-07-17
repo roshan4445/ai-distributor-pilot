@@ -652,7 +652,6 @@ JSON SCHEMA:
     console.log(`🟡 FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "${text}"`);
     console.warn(`⚠️ [DistributorAgent] Triggering fallback rules engine for query: "${text}". (GROQ_API_KEY missing or LLM call failed)`);
     const rawFallback = await runFallbackRulesEngine(text, productsList, dealersList, invoicesList, ordersList, conversationId, dealerId);
-    console.log("RAW FALLBACK JSON:", rawFallback);
     agentOutput = JSON.parse(rawFallback);
     tokenSavingsLog = "Offline Rules Mode triggered (100% LLM token savings)";
   }
@@ -699,7 +698,6 @@ JSON SCHEMA:
       let stockOosMatch: any = null;
       for (const item of resolvedItems) {
         const match = productsList.find(p => p.sku.toLowerCase() === item.sku.toLowerCase());
-        console.log("STOCK CHECK DEBUG:", { sku: item.sku, qty: item.qty, stock: match ? match.stock : null });
         if (match && item.qty > match.stock) {
           stockOosItem = item;
           stockOosMatch = match;
@@ -1443,10 +1441,16 @@ async function runFallbackRulesEngine(
     for (const p of products) {
       const pNameLower = p.name.toLowerCase();
       const pSkuLower = p.sku.toLowerCase();
+      
+      const pSkuTokens = pSkuLower.split(/[\s\-]+/);
+      const pNameTokens = pNameLower.split(/[\s\-]+/);
+      
       let score = 0;
       for (const t of tokens) {
         if (t.length > 1 && t !== "want" && t !== "need" && t !== "order" && t !== "pieces" && t !== "peices" && t !== "please" && t !== "select" && t !== "items" && t !== "units" && t !== "wala" && t !== "de" && t !== "do" && t !== "sir" && t !== "muje") {
-          if (pNameLower.includes(t) || pSkuLower.includes(t)) {
+          const matchesSku = pSkuTokens.includes(t);
+          const matchesName = pNameTokens.includes(t);
+          if (matchesSku || matchesName) {
             score += 2;
           }
         }
