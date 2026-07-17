@@ -1,16 +1,34 @@
 import { createClient } from "@libsql/client";
 
 const isBrowser = typeof window !== "undefined";
+const isVercel = !isBrowser && (process.env.VERCEL === "1" || process.env.NOW_REGION !== undefined);
+const dbUrl = isBrowser ? "http://localhost" : (isVercel ? "file:/tmp/local.db" : "file:local.db");
 
 export const db = createClient({
-  url: isBrowser ? "http://localhost" : "file:local.db",
+  url: dbUrl,
 });
 
 let initPromise: Promise<void> | null = null;
 
 export async function ensureDb() {
   if (!initPromise) {
-    initPromise = initDb();
+    initPromise = (async () => {
+      if (isVercel) {
+        try {
+          const fs = await import("node:fs");
+          const path = await import("node:path");
+          const srcPath = path.resolve(process.cwd(), "local.db");
+          const destPath = "/tmp/local.db";
+          if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
+            console.log(`Copying database from ${srcPath} to ${destPath}`);
+            fs.copyFileSync(srcPath, destPath);
+          }
+        } catch (e) {
+          console.error("Failed to copy SQLite database to /tmp:", e);
+        }
+      }
+      await initDb();
+    })();
   }
   return initPromise;
 }
