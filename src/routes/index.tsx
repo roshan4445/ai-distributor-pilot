@@ -85,7 +85,7 @@ const activityIcon: Record<string, any> = {
 };
 
 function MissionControl() {
-  const { kpis, revenueTrend, categoryMix, insights, activity, supabaseUrl } = Route.useLoaderData();
+  const { kpis, revenueTrend, categoryMix, insights, activity } = Route.useLoaderData();
   const [isClient, setIsClient] = useState(false);
   const [isCronRunning, setIsCronRunning] = useState(false);
 
@@ -267,11 +267,6 @@ function MissionControl() {
             })}
           </ol>
         </section>
-
-        {/* Debug Info */}
-        <div className="text-[10px] text-muted-foreground/35 text-center mt-4">
-          Connected Supabase URL: {supabaseUrl}
-        </div>
       </div>
     </AppShell>
   );

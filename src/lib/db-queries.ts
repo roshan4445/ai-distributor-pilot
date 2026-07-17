@@ -135,8 +135,7 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
     { id: "a6", time: "1 hr ago", text: "Ledger updated — PowerTech Distributors partial payment ₹35,000", type: "ledger" },
   ];
 
-  const supabaseUrl = (typeof process !== "undefined" && process.env?.VITE_SUPABASE_URL) || "fallback-url";
-  return { kpis, revenueTrend, categoryMix, insights, activity, supabaseUrl };
+  return { kpis, revenueTrend, categoryMix, insights, activity };
 });
 
 export const getDealers = createServerFn({ method: "GET" }).handler(async () => {
