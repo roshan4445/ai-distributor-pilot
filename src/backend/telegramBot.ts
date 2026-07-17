@@ -38,12 +38,24 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
   }
 }
 
+function getUuidForChatId(chatId: string | number): string {
+  const cleanId = String(chatId).replace(/\D/g, "");
+  const padded = cleanId.padStart(12, "0").slice(-12);
+  return `00000000-0000-0000-0000-${padded}`;
+}
+
+function getUuidForDealerId(dealerIdInput: string): string {
+  const num = dealerIdInput.replace(/\D/g, "");
+  const padded = num.padStart(12, "0").slice(-12);
+  return `00000000-0000-0000-0000-${padded}`;
+}
+
 async function handleTelegramMessage(botToken: string, message: any) {
   const chatId = String(message.chat.id);
   const text = message.text || "";
   if (!text) return;
 
-  const conversationId = `tg-${chatId}`;
+  const conversationId = getUuidForChatId(chatId);
   const cleanText = text.trim().toLowerCase();
 
   // Reset registration
@@ -55,10 +67,11 @@ async function handleTelegramMessage(botToken: string, message: any) {
 
   // Switch dealer profile dynamically
   if (/^d\d+$/.test(cleanText)) {
+    const uuidId = getUuidForDealerId(cleanText);
     const { data: matchedDealer } = await supabase
       .from("dealers")
       .select("*")
-      .eq("id", cleanText)
+      .eq("id", uuidId)
       .maybeSingle();
 
     if (matchedDealer) {
@@ -92,10 +105,11 @@ async function handleTelegramMessage(botToken: string, message: any) {
     let matchedDealer: any = null;
 
     if (/^d\d+$/.test(cleanText)) {
+      const uuidId = getUuidForDealerId(cleanText);
       const { data } = await supabase
         .from("dealers")
         .select("*")
-        .eq("id", cleanText)
+        .eq("id", uuidId)
         .maybeSingle();
       matchedDealer = data;
     } else {
