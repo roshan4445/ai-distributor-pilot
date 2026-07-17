@@ -815,6 +815,19 @@ function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (i
   ];
   const toolsUsed = hasMetadata ? msg.data.toolsUsed : (msg.kind === "order" ? ["createOrder"] : msg.kind === "invoice" ? ["createOrder"] : msg.kind === "ledger" ? ["recordPayment"] : msg.kind === "reminder" ? ["scheduleReminder"] : []);
 
+  // Log all metadata to the console / logs rather than showing it in the UI
+  React.useEffect(() => {
+    if (hasMetadata) {
+      console.log(`[Agent Metadata Log] Trace ID: ${msg.data.traceId}`);
+      console.log(`- Intent: ${intent} (Confidence: ${(confidence * 100).toFixed(0)}%)`);
+      console.log(`- Execution Time: ${executionTime} | Health: ${health}`);
+      console.log(`- Reflection: ${reflection}`);
+      console.log(`- Plan Steps:`, planSteps);
+      console.log(`- Timeline:`, timeline);
+      console.log(`- Tools Used:`, toolsUsed);
+    }
+  }, [hasMetadata, msg.data, intent, confidence, executionTime, health, reflection, planSteps, timeline, toolsUsed]);
+
   // For order/invoice/ledger/reminder cards, we extract the nested 'data' payload from the full metadata if it exists
   const innerData = hasMetadata ? msg.data.data : msg.data;
 
@@ -832,26 +845,6 @@ function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (i
 
         {/* Outer Rich Response Card (Dark style) */}
         <div className="rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 p-4 shadow-xl space-y-3 w-full rounded-tr-sm">
-          {/* Card Meta Row */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-900 pb-2.5 text-[11px]">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-[10.5px] uppercase tracking-wider text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
-                Intent: {intent}
-              </span>
-              <span className="text-slate-550">•</span>
-              <span className="text-slate-400">Confidence: <span className="text-success font-semibold">{(confidence * 100).toFixed(0)}%</span></span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400">Time: <span className="font-mono text-slate-300 font-semibold">{executionTime}</span></span>
-              <span className="text-slate-500">•</span>
-              <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded font-semibold text-[10px] ${
-                health === "HEALTHY" ? "bg-success/15 text-success border border-success/20" : "bg-warning/15 text-warning border border-warning/20"
-              }`}>
-                {health}
-              </span>
-            </div>
-          </div>
-
           {/* Thinking / Loader */}
           {isThinking ? (
             <div className="flex items-center gap-2.5 text-[13px] text-slate-300 py-1">
@@ -872,83 +865,6 @@ function MessageBubble({ msg, onViewInvoice }: { msg: ChatMsg; onViewInvoice: (i
               {msg.kind === "invoice" && innerData ? <InvoiceCard data={innerData} onViewInvoice={onViewInvoice} /> : null}
               {msg.kind === "ledger" && innerData ? <LedgerCard data={innerData} /> : null}
               {msg.kind === "reminder" && innerData ? <ReminderCard data={innerData} /> : null}
-
-              {/* Reflection Summary Row */}
-              {reflection && (
-                <div className="text-[11.5px] bg-slate-900/40 border border-slate-900/60 rounded-lg p-2.5 text-slate-400">
-                  <span className="text-success font-semibold">✓ Reflection summary:</span> {reflection}
-                </div>
-              )}
-
-              {/* Collapsible Trace Panel Trigger */}
-              <div className="border-t border-slate-900 pt-2.5 flex justify-between items-center">
-                <button
-                  onClick={() => setShowTrace(!showTrace)}
-                  className="text-[11px] font-semibold text-primary hover:text-primary/80 transition inline-flex items-center gap-1 cursor-pointer"
-                >
-                  {showTrace ? "Hide Observability Trace ▲" : "Show Observability Trace ▼"}
-                </button>
-                <div className="text-[9.5px] text-slate-500 font-mono font-bold tracking-wider">
-                  LCEL CHAIN RUN
-                </div>
-              </div>
-
-              {/* Observability Expanded Content */}
-              {showTrace && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  className="space-y-3 pt-2 overflow-hidden text-[11.5px]"
-                >
-                  {/* Execution Plan Checklist */}
-                  <div className="bg-slate-900/40 border border-slate-900/60 rounded-xl p-3.5 space-y-2">
-                    <div className="text-[10px] uppercase font-bold text-slate-500">Execution Plan Steps</div>
-                    <ul className="space-y-1">
-                      {planSteps.map((step: string, i: number) => (
-                        <li key={i} className="text-slate-300 flex items-center gap-1.5">
-                          <span className="text-success">✓</span> {step}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Observability Timeline */}
-                  <div className="bg-slate-900/40 border border-slate-900/60 rounded-xl p-3.5 space-y-2">
-                    <div className="text-[10px] uppercase font-bold text-slate-500">Execution Timeline</div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-slate-400">
-                      {timeline.map((t: any, i: number) => (
-                        <React.Fragment key={i}>
-                          {i > 0 && <span className="text-slate-600">→</span>}
-                          <div className="bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-[10.5px] font-mono">
-                            <span className="text-slate-300 font-semibold">{t.state}</span> ({t.duration})
-                          </div>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Platform Tools Executed */}
-                  {toolsUsed && toolsUsed.length > 0 && (
-                    <div className="bg-slate-900/40 border border-slate-900/60 rounded-xl p-3.5 space-y-2">
-                      <div className="text-[10px] uppercase font-bold text-slate-500">Platform Tools Invoked</div>
-                      <div className="space-y-2">
-                        {toolsUsed.map((tool: string, i: number) => (
-                          <div key={i} className="space-y-1 bg-slate-950 p-2.5 rounded border border-slate-900 text-[11px] font-mono">
-                            <div className="flex items-center justify-between">
-                              <span className="text-primary font-semibold">🔧 {tool}()</span>
-                              <span className="text-success font-bold text-[10px]">COMPLETED</span>
-                            </div>
-                            <div className="text-[9.5px] text-slate-500 flex justify-between">
-                              <span>Trace status: Success</span>
-                              <span>Time: 145ms</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
             </>
           )}
         </div>
