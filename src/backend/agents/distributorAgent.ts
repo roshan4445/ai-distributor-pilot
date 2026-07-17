@@ -177,15 +177,7 @@ export async function processAgentRequest(
     console.warn("Failed to check conversation staleness:", err);
   }
 
-  // ==========================================
-  // IDEMPOTENCY GUARD — duplicate-request dedup
-  // ==========================================
-  // Buckets mutating requests into 5-second windows to prevent double-orders/double-payments.
-  // Key = djb2 hash of (conversationId + normalizedText + 5s-bucket).
-  // Stored in conversation_state.last_idempotency_key. Degrades gracefully if columns absent.
-  // IMPORTANT: This must run BEFORE the last_activity_at upsert below, because
-  // SQLite's INSERT OR REPLACE wipes all columns not specified in the upsert,
-  // which would destroy the stored idempotency key/response from the prior request.
+  // Compute text classification flags (needed by both staleness and idempotency)
   const cleanTextLocal = text.toLowerCase().trim();
   const isConfirmLocal = (cleanTextLocal.includes("confirm") || cleanTextLocal.includes("yes") || cleanTextLocal.includes("agree") || cleanTextLocal.includes("done") || cleanTextLocal.includes("ok") || cleanTextLocal.includes("okay")) && !/\d+/.test(cleanTextLocal);
   const isMutatingRequest = isConfirmLocal ||
@@ -194,6 +186,26 @@ export async function processAgentRequest(
     cleanTextLocal.includes("transferred") ||
     cleanTextLocal.includes("sent money");
 
+  // STEP 1: Always update last_activity_at for staleness tracking.
+  // This runs FIRST so there is no stored idempotency data to wipe.
+  // (SQLite INSERT OR REPLACE only writes the specified columns, wiping others.)
+  try {
+    await supabase.from("conversation_state").upsert({
+      conversation_id: conversationId,
+      last_activity_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn("Failed to update last_activity_at:", err);
+  }
+
+  // ==========================================
+  // STEP 2: IDEMPOTENCY GUARD — duplicate-request dedup
+  // ==========================================
+  // Buckets mutating requests into 5-second windows to prevent double-orders/double-payments.
+  // Key = djb2 hash of (conversationId + normalizedText + 5s-bucket).
+  // Stored in conversation_state.last_idempotency_key. Degrades gracefully if columns absent.
+  // Runs AFTER the activity upsert above, so the reservation upsert overwrites
+  // the activity-only row with key + activity atomically (no data loss).
   let idempotencyKey: string | null = null;
   if (isMutatingRequest) {
     const bucket = Math.floor(Date.now() / 5000); // 5-second window
@@ -220,7 +232,6 @@ export async function processAgentRequest(
         return typeof cached === "string" ? cached : JSON.stringify(cached);
       }
       // Reserve key slot immediately so concurrent racing requests also get deduped.
-      // This also updates last_activity_at, so we skip the standalone upsert below.
       await supabase.from("conversation_state").upsert({
         conversation_id: conversationId,
         last_idempotency_key: idempotencyKey,
@@ -228,19 +239,6 @@ export async function processAgentRequest(
       });
     } catch (idemErr) {
       console.warn("[IDEMPOTENCY] Guard check failed, proceeding without dedup protection:", idemErr);
-    }
-  }
-
-  // Update last_activity_at for non-mutating requests only.
-  // Mutating requests already updated it in the idempotency guard above.
-  if (!isMutatingRequest) {
-    try {
-      await supabase.from("conversation_state").upsert({
-        conversation_id: conversationId,
-        last_activity_at: new Date().toISOString()
-      });
-    } catch (err) {
-      console.warn("Failed to update last_activity_at:", err);
     }
   }
 
