@@ -2,6 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/utils/supabase";
 import { runAgentConversation, runAgentQuery, runAgentDuesAnalysis } from "./gemini";
 
+if (typeof process !== "undefined" && process.env?.TELEGRAM_BOT_TOKEN) {
+  import("../backend/telegramBot").then(({ startTelegramBot }) => {
+    startTelegramBot(process.env.TELEGRAM_BOT_TOKEN!);
+  }).catch(e => console.error("Error starting Telegram bot in background:", e));
+}
+
 // Helper dummy ensureDb to keep existing codebase compatibility
 export async function ensureDb() {}
 
