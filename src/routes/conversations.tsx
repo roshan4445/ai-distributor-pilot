@@ -142,10 +142,10 @@ function ConversationsPage() {
   }, [router]);
 
   useEffect(() => {
-    if (active) {
+    if (active && !isSending) {
       setLocalMessages(active.messages);
     }
-  }, [active?.id, active?.messages]);
+  }, [active?.id, active?.messages, isSending]);
 
   useEffect(() => {
     if (isSending) {
@@ -380,31 +380,7 @@ function ConversationsPage() {
           </div>
 
           <footer className="p-4 border-t border-border bg-slate-900/10 space-y-3">
-            {isBotConfigured ? (
-              <div className="rounded-xl border border-success/20 bg-success/5 p-3 flex items-start gap-2.5">
-                <div className="h-6 w-6 shrink-0 rounded-lg bg-success/15 grid place-items-center text-success">
-                  <Send className="h-3.5 w-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold tracking-tight text-foreground">Telegram Channel Active</div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground leading-normal">
-                    Real-time B2B chat sync with Telegram bot is active. You can also simulate messages using the input below.
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-warning/20 bg-warning/5 p-3 flex items-start gap-2.5">
-                <div className="h-6 w-6 shrink-0 rounded-lg bg-warning/15 grid place-items-center text-warning">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-semibold tracking-tight text-foreground">Telegram Setup Recommended</div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground leading-normal">
-                    For real-time WhatsApp-like B2B messaging, configure your <code className="bg-secondary/40 px-1 py-0.5 rounded text-[10px] font-mono">TELEGRAM_BOT_TOKEN</code>.
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             <div className="flex items-center justify-between border-t border-border/50 pt-2">
               <div className="flex items-center gap-1 bg-secondary p-1 rounded-xl text-[12px] h-8">

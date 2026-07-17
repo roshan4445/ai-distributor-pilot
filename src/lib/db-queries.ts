@@ -193,12 +193,26 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
   }
 
   // Add payments and reminders from messages table
-  const { data: rawMsgs } = await supabase
-    .from("messages")
-    .select("*, conversations(dealer)")
-    .in("kind", ["ledger", "reminder"]);
+  const isSqlite = typeof process !== "undefined" && (process.env?.USE_SQLITE === "true" || process.env?.VITE_USE_SQLITE === "true");
+  
+  let rawMsgs: any[] = [];
+  if (isSqlite) {
+    const { data: msgs } = await supabase.from("messages").select("*").in("kind", ["ledger", "reminder"]);
+    const { data: convs } = await supabase.from("conversations").select("id, dealer");
+    const convMap = new Map((convs || []).map(c => [c.id, c.dealer]));
+    rawMsgs = (msgs || []).map(m => ({
+      ...m,
+      conversations: { dealer: convMap.get(m.conversationId) }
+    }));
+  } else {
+    const { data } = await supabase
+      .from("messages")
+      .select("*, conversations(dealer)")
+      .in("kind", ["ledger", "reminder"]);
+    rawMsgs = data || [];
+  }
 
-  for (const msg of (rawMsgs || [])) {
+  for (const msg of rawMsgs) {
     const dealerName = (msg as any).conversations?.dealer || "Unknown";
     const time = msg.time;
     if (msg.kind === "ledger") {
@@ -353,6 +367,37 @@ export const getInvoices = createServerFn({ method: "GET" }).handler(async () =>
 });
 
 export const getOrders = createServerFn({ method: "GET" }).handler(async () => {
+  const isSqlite = typeof process !== "undefined" && (process.env?.USE_SQLITE === "true" || process.env?.VITE_USE_SQLITE === "true");
+
+  if (isSqlite) {
+    const { data: orders } = await supabase.from("orders").select("*").order("invoice", { ascending: false });
+    const { data: orderItems } = await supabase.from("order_items").select("*");
+    
+    const itemsMap: Record<string, any[]> = {};
+    for (const item of (orderItems || [])) {
+      if (!itemsMap[item.orderId]) {
+        itemsMap[item.orderId] = [];
+      }
+      itemsMap[item.orderId].push(item);
+    }
+    
+    return (orders || []).map(row => ({
+      id: String(row.id),
+      invoice: String(row.invoice),
+      dealerId: String(row.dealerId),
+      dealer: String(row.dealerName),
+      total: Number(row.total),
+      status: String(row.status) as "processing" | "packed" | "dispatched" | "delivered",
+      placedAt: formatRelativeTime(String(row.placedAt)),
+      aiNote: String(row.aiNote),
+      items: (itemsMap[row.id] || []).map(it => ({
+        name: String(it.name),
+        qty: Number(it.qty),
+        price: Number(it.price),
+      })),
+    }));
+  }
+
   const { data: orders } = await supabase
     .from("orders")
     .select("*, order_items(name, qty, price)")
@@ -376,67 +421,86 @@ export const getOrders = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export const getConversationsList = createServerFn({ method: "GET" }).handler(async () => {
-  const { data: conversations } = await supabase
-    .from("conversations")
-    .select("*, messages(*)");
+  const isSqlite = typeof process !== "undefined" && (process.env?.USE_SQLITE === "true" || process.env?.VITE_USE_SQLITE === "true");
 
-  return (conversations || [])
+  let conversations: any[] = [];
+  let msgsMap: Record<string, any[]> = {};
+
+  if (isSqlite) {
+    const { data: convs } = await supabase.from("conversations").select("*");
+    const { data: allMessages } = await supabase.from("messages").select("*");
+    conversations = convs || [];
+    for (const m of (allMessages || [])) {
+      if (!msgsMap[m.conversationId]) {
+        msgsMap[m.conversationId] = [];
+      }
+      msgsMap[m.conversationId].push(m);
+    }
+  } else {
+    const { data: convs } = await supabase.from("conversations").select("*, messages(*)");
+    conversations = convs || [];
+    for (const c of conversations) {
+      msgsMap[c.id] = (c as any).messages || [];
+    }
+  }
+
+  return conversations
     .filter(c => c.preview !== "Seeded for regression test" && !String(c.id).startsWith("baseline-convo-"))
     .map(c => {
-    const msgs = ((c as any).messages as any[]) || [];
-    
-    const parsedMessages = msgs
-      .filter(m => m.fromRole !== "system_memory")
-      .map(m => ({
-        id: String(m.id),
-        from: String(m.fromRole) as "dealer" | "ai" | "system",
-        text: m.text ? String(m.text) : undefined,
-        time: String(m.time),
-        kind: m.kind ? String(m.kind) : undefined,
-        data: m.data ? (typeof m.data === "string" ? JSON.parse(m.data) : m.data) : undefined,
-      }));
+      const msgs = msgsMap[c.id] || [];
+      
+      const parsedMessages = msgs
+        .filter(m => m.fromRole !== "system_memory")
+        .map(m => ({
+          id: String(m.id),
+          from: String(m.fromRole) as "dealer" | "ai" | "system",
+          text: m.text ? String(m.text) : undefined,
+          time: String(m.time),
+          kind: m.kind ? String(m.kind) : undefined,
+          data: m.data ? (typeof m.data === "string" ? JSON.parse(m.data) : m.data) : undefined,
+        }));
 
-    // Chronological message sorting
-    parsedMessages.sort((a, b) => {
-      const isSeededA = a.id.startsWith("m") && !a.id.includes("-");
-      const isSeededB = b.id.startsWith("m") && !b.id.includes("-");
-      
-      if (isSeededA && isSeededB) {
-        return parseInt(a.id.substring(1)) - parseInt(b.id.substring(1));
-      }
-      if (isSeededA && !isSeededB) {
-        return -1;
-      }
-      if (!isSeededA && isSeededB) {
-        return 1;
-      }
+      // Chronological message sorting
+      parsedMessages.sort((a, b) => {
+        const isSeededA = a.id.startsWith("m") && !a.id.includes("-");
+        const isSeededB = b.id.startsWith("m") && !b.id.includes("-");
+        
+        if (isSeededA && isSeededB) {
+          return parseInt(a.id.substring(1)) - parseInt(b.id.substring(1));
+        }
+        if (isSeededA && !isSeededB) {
+          return -1;
+        }
+        if (!isSeededA && isSeededB) {
+          return 1;
+        }
 
-      const isIsoA = a.time.includes("T") && a.time.includes("Z");
-      const isIsoB = b.time.includes("T") && b.time.includes("Z");
+        const isIsoA = a.time.includes("T") && a.time.includes("Z");
+        const isIsoB = b.time.includes("T") && b.time.includes("Z");
+        
+        if (isIsoA && !isIsoB) {
+          return 1; // ISO comes after non-ISO
+        }
+        if (!isIsoA && isIsoB) {
+          return -1; // non-ISO comes before ISO
+        }
+        
+        return a.time.localeCompare(b.time);
+      });
       
-      if (isIsoA && !isIsoB) {
-        return 1; // ISO comes after non-ISO
-      }
-      if (!isIsoA && isIsoB) {
-        return -1; // non-ISO comes before ISO
-      }
-      
-      return a.time.localeCompare(b.time);
+      const memoryMsg = msgs.find(m => m.fromRole === "system_memory");
+      const memory = memoryMsg?.data ? (typeof memoryMsg.data === "string" ? JSON.parse(memoryMsg.data) : memoryMsg.data) : null;
+
+      return {
+        id: String(c.id),
+        dealer: String(c.dealer),
+        city: String(c.city),
+        unread: Number(c.unread),
+        preview: String(c.preview),
+        messages: parsedMessages,
+        memory
+      };
     });
-    
-    const memoryMsg = msgs.find(m => m.fromRole === "system_memory");
-    const memory = memoryMsg?.data ? (typeof memoryMsg.data === "string" ? JSON.parse(memoryMsg.data) : memoryMsg.data) : null;
-
-    return {
-      id: String(c.id),
-      dealer: String(c.dealer),
-      city: String(c.city),
-      unread: Number(c.unread),
-      preview: String(c.preview),
-      messages: parsedMessages,
-      memory
-    };
-  });
 });
 
 export const postMessage = createServerFn({ method: "POST" })

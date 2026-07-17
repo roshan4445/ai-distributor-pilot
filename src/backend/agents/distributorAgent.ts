@@ -682,6 +682,7 @@ JSON SCHEMA:
             price: Number(match.price)
           };
         }
+        
         return item;
       });
       data.items = resolvedItems;
