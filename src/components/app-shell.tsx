@@ -97,11 +97,19 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
             </button>
 
-            <button className="flex items-center gap-2 h-10 pl-1.5 pr-2.5 rounded-xl hover:bg-secondary transition">
+            <button 
+              onClick={() => {
+                if (window.confirm("Are you sure you want to log out?")) {
+                  localStorage.removeItem("isLoggedIn");
+                  window.location.reload();
+                }
+              }}
+              className="flex items-center gap-2 h-10 pl-1.5 pr-2.5 rounded-xl hover:bg-secondary transition cursor-pointer"
+            >
               <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary to-indigo-500 text-primary-foreground grid place-items-center text-[11px] font-bold">R</div>
               <div className="hidden md:flex flex-col leading-tight items-start">
                 <span className="text-[12px] font-semibold">Roshan</span>
-                <span className="text-[10px] text-muted-foreground">Owner</span>
+                <span className="text-[10px] text-muted-foreground">Log out</span>
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </button>

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { lazy, Suspense, useState, useEffect } from "react";
 import {
   ArrowUpRight, ArrowDownRight, Sparkles, AlertTriangle, TrendingUp, Lightbulb,
@@ -85,13 +85,19 @@ const activityIcon: Record<string, any> = {
 };
 
 function MissionControl() {
-  const { kpis, revenueTrend, categoryMix, insights, activity } = Route.useLoaderData();
+  const { kpis, revenueTrend, categoryMix, insights, activity, latestTrace, productsList, dealersList, supabaseUrl } = Route.useLoaderData();
   const [isClient, setIsClient] = useState(false);
   const [isCronRunning, setIsCronRunning] = useState(false);
+  const router = useRouter();
 
+  // Polling implementation (refresh every 3 seconds for near-real-time)
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    const interval = setInterval(() => {
+      router.invalidate();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   const handleTriggerCron = async () => {
     if (isCronRunning) return;
@@ -115,11 +121,26 @@ function MissionControl() {
     { key: "orders", label: "Today's Orders", value: kpis.ordersToday, delta: kpis.ordersDelta, up: true, icon: ShoppingCart, tint: "primary" as const },
     { key: "rev", label: "Today's Revenue", value: fmt(kpis.revenueToday), delta: kpis.revenueDelta, up: true, icon: IndianRupee, tint: "success" as const },
     { key: "dues", label: "Pending Dues", value: fmt(kpis.pendingDues), delta: kpis.duesDelta, up: false, icon: Wallet, tint: "danger" as const },
-    { key: "inv", label: "Inventory Alerts", value: kpis.inventoryAlerts, delta: "3 critical", up: false, icon: Package, tint: "warning" as const },
+    { key: "inv", label: "Inventory Alerts", value: kpis.inventoryAlerts, delta: "low margin", up: false, icon: Package, tint: "warning" as const },
     { key: "invc", label: "Invoices Generated", value: kpis.invoicesGenerated, delta: "auto", up: true, icon: FileText, tint: "info" as const },
     { key: "fu", label: "Dealer Follow-ups", value: kpis.followUps, delta: "AI-scheduled", up: true, icon: Bell, tint: "primary" as const },
     { key: "col", label: "Collections Today", value: fmt(kpis.collectionsToday), delta: "+22%", up: true, icon: CheckCircle2, tint: "success" as const },
   ];
+
+  // Sorting dealers overdue status first, then pending balance descending
+  const sortedDealers = [...(dealersList || [])]
+    .filter(d => d.pending > 0)
+    .sort((a, b) => {
+      const statusWeight = { overdue: 3, watch: 2, active: 1 };
+      const weightA = statusWeight[a.status as "overdue"|"watch"|"active"] || 0;
+      const weightB = statusWeight[b.status as "overdue"|"watch"|"active"] || 0;
+      if (weightA !== weightB) return weightB - weightA;
+      return b.pending - a.pending;
+    });
+
+  // Filtering products for safety stock limit warnings (stock < min)
+  const lowStockProducts = [...(productsList || [])].filter(p => p.stock < p.min);
+
   return (
     <AppShell>
       <div className="px-5 md:px-8 py-8 max-w-[1400px] mx-auto space-y-8">
@@ -136,8 +157,8 @@ function MissionControl() {
                 Good morning, <span className="text-gradient">{owner.name}</span> 👋
               </h1>
               <p className="mt-2 text-[15px] text-muted-foreground max-w-xl">
-                Your AI monitored the business overnight — parsed 6 WhatsApp orders, sent 3 reminders, and
-                flagged 2 dealers to call today.
+                Your AI monitored the business overnight — parsed WhatsApp orders, sent payment reminders, and
+                updated balances ledger.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Link to="/conversations" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold shadow-glow hover:opacity-95">
@@ -152,7 +173,7 @@ function MissionControl() {
                   className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-955 text-[13px] font-semibold transition-colors cursor-pointer"
                 >
                   {isCronRunning ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-950" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-955" />
                   ) : (
                     <Sparkles className="h-3.5 w-3.5 text-slate-955" />
                   )}
@@ -164,6 +185,8 @@ function MissionControl() {
             <HealthRing value={kpis.businessHealth} />
           </div>
         </section>
+
+
 
         {/* KPIs */}
         <section>
@@ -194,79 +217,165 @@ function MissionControl() {
           </div>
         </section>
 
-        {/* Middle grid: chart + AI insights */}
-        <Suspense fallback={<ChartsSkeleton />}>
-          {isClient ? (
-            <DashboardCharts revenueTrend={revenueTrend} categoryMix={categoryMix} />
-          ) : (
-            <ChartsSkeleton />
-          )}
-        </Suspense>
+        {/* Split Grid: Charts/Activity on Left, Dues/Stock on Right */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 space-y-6">
+            {/* Charts */}
+            <Suspense fallback={<ChartsSkeleton />}>
+              {isClient ? (
+                <DashboardCharts revenueTrend={revenueTrend} categoryMix={categoryMix} />
+              ) : (
+                <ChartsSkeleton />
+              )}
+            </Suspense>
 
-        {/* AI Insights */}
-        <section className="card-surface p-5 md:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center">
-                <Sparkles className="h-4.5 w-4.5" />
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">AI Insights</div>
-                <div className="text-[17px] font-semibold tracking-tight">4 recommendations for today</div>
-              </div>
-            </div>
-            <Link to="/ask" className="text-[12px] font-semibold text-primary hover:underline">Ask follow-up →</Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {insights.map((ins) => {
-              const Icon = insightIcon[ins.kind];
-              return (
-                <div key={ins.id} className={`rounded-xl border p-4 ${insightTone[ins.kind]}`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`h-9 w-9 shrink-0 rounded-lg grid place-items-center ${insightIconBg[ins.kind]}`}>
-                      <Icon className="h-4.5 w-4.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[14px] font-semibold tracking-tight">{ins.title}</div>
-                      <div className="mt-1 text-[13px] text-muted-foreground leading-relaxed">{ins.body}</div>
-                      {ins.cta ? (
-                        <button className="mt-2.5 inline-flex items-center gap-1.5 text-[12px] font-semibold text-primary hover:underline">
-                          <PhoneCall className="h-3.5 w-3.5" /> {ins.cta}
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
+            {/* Activity Timeline */}
+            <section className="card-surface p-5 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Live</div>
+                  <div className="text-[17px] font-semibold tracking-tight">Recent activity ledger</div>
                 </div>
-              );
-            })}
+                <Pill tone="success" icon={<span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />}>Real-time updates active</Pill>
+              </div>
+              <ol className="relative border-l border-border ml-3 space-y-4">
+                {activity.map((a) => {
+                  const Icon = activityIcon[a.type] ?? Sparkles;
+                  return (
+                    <li key={a.id} className="pl-6 relative">
+                      <span className="absolute -left-[13px] top-0.5 h-6 w-6 rounded-full bg-background border border-border grid place-items-center">
+                        <Icon className="h-3 w-3 text-primary" />
+                      </span>
+                      <div className="text-[13.5px] font-medium">{a.text}</div>
+                      <div className="text-[11.5px] text-muted-foreground">{a.time}</div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
           </div>
-        </section>
 
-        {/* Activity timeline */}
-        <section className="card-surface p-5 md:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Live</div>
-              <div className="text-[17px] font-semibold tracking-tight">Recent activity</div>
-            </div>
-            <Pill tone="success" icon={<span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />}>AI is active</Pill>
+          <div className="space-y-6">
+            {/* Dues by Dealer */}
+            <section className="card-surface p-5 md:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4.5 w-4.5 text-destructive" />
+                  <h2 className="text-[15px] font-semibold tracking-tight">Dues by Dealer (Overdue First)</h2>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[12.5px]">
+                  <thead>
+                    <tr className="border-b border-border/80 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                      <th className="py-2">Dealer</th>
+                      <th className="py-2 text-right">Pending Balance</th>
+                      <th className="py-2 pl-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {sortedDealers.map((d) => (
+                      <tr key={d.id} className="hover:bg-secondary/5 transition-colors">
+                        <td className="py-2.5">
+                          <div className="font-semibold">{d.name}</div>
+                          <div className="text-[11px] text-muted-foreground">{d.city} · avg {d.avgPaymentDays}d</div>
+                        </td>
+                        <td className="py-2.5 text-right font-medium text-destructive">
+                          ₹{d.pending.toLocaleString("en-IN")}
+                        </td>
+                        <td className="py-2.5 pl-3">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase ${
+                            d.status === "overdue" ? "bg-destructive/15 text-destructive" :
+                            d.status === "watch" ? "bg-warning/20 text-[color-mix(in_oklab,var(--warning)_40%,black)]" :
+                            "bg-success/15 text-success"
+                          }`}>
+                            {d.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Safety Stock Alerts */}
+            <section className="card-surface p-5 md:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4.5 w-4.5 text-warning" />
+                  <h2 className="text-[15px] font-semibold tracking-tight">Safety Stock Alerts</h2>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-warning/15 text-[10px] font-semibold text-warning uppercase">
+                  {lowStockProducts.length} low
+                </span>
+              </div>
+              <div className="space-y-3">
+                {lowStockProducts.map((p) => {
+                  const pct = Math.max(5, Math.min(100, (p.stock / p.min) * 100));
+                  return (
+                    <div key={p.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-[12px]">
+                        <div className="font-medium">{p.name}</div>
+                        <div className="font-mono text-muted-foreground text-[11px]">
+                          <span className={p.stock === 0 ? "text-destructive font-bold" : "text-amber-500 font-semibold"}>
+                            {p.stock}
+                          </span> / {p.min} min
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-secondary/30 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            p.stock === 0 ? "bg-destructive" : "bg-amber-500"
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                {lowStockProducts.length === 0 && (
+                  <p className="text-center py-4 text-muted-foreground text-[12.5px]">
+                    All stock levels healthy.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {/* AI Insights (Recommendations) */}
+            <section className="card-surface p-5 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="h-4.5 w-4.5 text-primary" />
+                  <h2 className="text-[15px] font-semibold tracking-tight">AI Actions Checklist</h2>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {insights.slice(0, 3).map((ins) => {
+                  const Icon = insightIcon[ins.kind];
+                  return (
+                    <div key={ins.id} className={`rounded-xl border p-3.5 ${insightTone[ins.kind]}`}>
+                      <div className="flex items-start gap-2.5">
+                        <div className={`h-8 w-8 shrink-0 rounded-lg grid place-items-center ${insightIconBg[ins.kind]}`}>
+                          <Icon className="h-4.5 w-4.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-semibold tracking-tight">{ins.title}</div>
+                          <div className="mt-1 text-[11.5px] text-muted-foreground leading-normal">{ins.body}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           </div>
-          <ol className="relative border-l border-border ml-3 space-y-4">
-            {activity.map((a) => {
-              const Icon = activityIcon[a.type] ?? Sparkles;
-              return (
-                <li key={a.id} className="pl-6 relative">
-                  <span className="absolute -left-[13px] top-0.5 h-6 w-6 rounded-full bg-background border border-border grid place-items-center">
-                    <Icon className="h-3 w-3 text-primary" />
-                  </span>
-                  <div className="text-[13.5px] font-medium">{a.text}</div>
-                  <div className="text-[11.5px] text-muted-foreground">{a.time}</div>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
+        </div>
+
+        {/* Debug Info */}
+        <div className="text-[10px] text-muted-foreground/35 text-center mt-4">
+          Connected Supabase URL: {supabaseUrl}
+        </div>
       </div>
     </AppShell>
   );
