@@ -451,7 +451,7 @@ export async function processAgentRequest(
           total: calculatedTotal,
           status: "processing",
           placedAt: new Date().toISOString(),
-          aiNote: `Confirmed by LangChain orchestrator (${traceId}).`
+          aiNote: `Confirmed by AI Distributor Agent (${traceId}).`
         });
 
         // Insert Order Items
