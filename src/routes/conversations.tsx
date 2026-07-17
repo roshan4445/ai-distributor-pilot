@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -14,12 +14,16 @@ import { useRouter } from "@tanstack/react-router";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/conversations")({
+  beforeLoad: () => {
+    throw redirect({ to: "/" });
+  },
   loader: async () => {
     const [conversations, dealers] = await Promise.all([
       getConversationsList(),
       getDealers()
     ]);
-    return { conversations, dealers };
+    const isBotConfigured = !!(typeof process !== "undefined" && process.env?.TELEGRAM_BOT_TOKEN);
+    return { conversations, dealers, isBotConfigured };
   },
   head: () => ({
     meta: [
@@ -100,7 +104,7 @@ function formatMessage(text: string) {
 }
 
 function ConversationsPage() {
-  const { conversations: conversationsList, dealers: dealersList } = Route.useLoaderData();
+  const { conversations: conversationsList, dealers: dealersList, isBotConfigured } = Route.useLoaderData();
   const router = useRouter();
 
   if (conversationsList.length === 0) {
@@ -130,9 +134,15 @@ function ConversationsPage() {
   const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [activeInvoice, setActiveInvoice] = useState<any | null>(null);
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
-
-  // Live animation state parameters for active agent execution flow
   const [pipelineStep, setPipelineStep] = useState(0);
+
+  // Polling loop to auto-refresh dealer Telegram chats
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.invalidate();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   useEffect(() => {
     if (active) {
@@ -372,62 +382,32 @@ function ConversationsPage() {
             </AnimatePresence>
           </div>
 
-          <footer className="p-4 border-t border-border bg-background space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 bg-secondary p-1 rounded-xl text-[12px] h-8">
-                <button
-                  onClick={() => setSimulationMode("dealer")}
-                  className={`px-3 py-1 rounded-lg font-semibold transition inline-flex items-center gap-1 ${
-                    simulationMode === "dealer"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  👤 Act as Dealer
-                </button>
-                <button
-                  onClick={() => setSimulationMode("ai")}
-                  className={`px-3 py-1 rounded-lg font-semibold transition inline-flex items-center gap-1 ${
-                    simulationMode === "ai"
-                      ? "bg-foreground text-background shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  🏢 Act as Distributor
-                </button>
+          <footer className="p-4 border-t border-border bg-slate-900/10 space-y-3">
+            {isBotConfigured ? (
+              <div className="rounded-xl border border-success/20 bg-success/5 p-4 flex items-start gap-3">
+                <div className="h-8 w-8 shrink-0 rounded-lg bg-success/15 grid place-items-center text-success">
+                  <Send className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold tracking-tight text-foreground">Telegram Channel Active</div>
+                  <div className="mt-1 text-[11.5px] text-muted-foreground leading-normal">
+                    This B2B chat channel is synchronized with Telegram. Incoming dealer queries and order requests sent to your bot are processed dynamically, and responses are rendered here in real-time.
+                  </div>
+                </div>
               </div>
-
-              <div className="text-[11px] text-muted-foreground font-semibold">
-                {simulationMode === "dealer" ? (
-                  <span className="text-primary animate-pulse">Simulating Dealer Mobile WhatsApp Chat</span>
-                ) : (
-                  <span className="text-foreground/80">Simulating Distributor Admin Override Reply</span>
-                )}
+            ) : (
+              <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 flex items-start gap-3">
+                <div className="h-8 w-8 shrink-0 rounded-lg bg-warning/15 grid place-items-center text-warning">
+                  <AlertTriangle className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold tracking-tight text-foreground">Telegram Setup Required</div>
+                  <div className="mt-1 text-[11.5px] text-muted-foreground leading-normal">
+                    To activate live B2B dealer ordering via Telegram, please obtain a Bot Token from <strong className="text-foreground">@BotFather</strong> and set the <code className="bg-secondary/40 px-1 py-0.5 rounded text-[11px] font-mono">TELEGRAM_BOT_TOKEN</code> variable in your local <strong className="text-foreground">.env</strong> file.
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button className="h-10 w-10 rounded-xl hover:bg-secondary grid place-items-center text-muted-foreground"><Smile className="h-4.5 w-4.5" /></button>
-              <button className="h-10 w-10 rounded-xl hover:bg-secondary grid place-items-center text-muted-foreground"><Paperclip className="h-4.5 w-4.5" /></button>
-              <input 
-                value={typingInput}
-                onChange={(e) => setTypingInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder={simulationMode === "dealer" ? `Type as ${active.dealer} (AI agent will reply)…` : "Type manual message from Kumar Electricals (No AI reply)…"} 
-                className="flex-1 h-10 px-3 rounded-xl bg-secondary text-[13.5px] focus:outline-none focus:ring-2 focus:ring-primary/20" 
-                disabled={isSending}
-              />
-              <button 
-                onClick={handleSend}
-                disabled={isSending}
-                className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold shadow-glow inline-flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {isSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Send
-              </button>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Sparkles className="h-3 w-3 text-primary animate-pulse" /> AI Agent runs autonomously on user message.
-            </div>
+            )}
           </footer>
         </section>
 

@@ -2,8 +2,84 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/utils/supabase";
 import { runAgentConversation, runAgentQuery, runAgentDuesAnalysis } from "./gemini";
 
+if (typeof process !== "undefined" && process.env?.TELEGRAM_BOT_TOKEN) {
+  import("../backend/telegramBot").then(({ startTelegramBot }) => {
+    startTelegramBot(process.env.TELEGRAM_BOT_TOKEN!);
+  }).catch(e => console.error("Error starting Telegram bot in background:", e));
+}
+
 // Helper dummy ensureDb to keep existing codebase compatibility
 export async function ensureDb() {}
+
+export function isTodayIST(dateInput: string) {
+  if (!dateInput.includes("T") && isNaN(Date.parse(dateInput))) {
+    return dateInput.includes("min") || 
+           dateInput.includes("hour") || 
+           dateInput.includes("Today") ||
+           dateInput.includes("now") ||
+           dateInput.includes("AM") ||
+           dateInput.includes("PM");
+  }
+  const date = new Date(dateInput);
+  try {
+    const istDateString = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    const todayISTString = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    return istDateString === todayISTString;
+  } catch (e) {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  }
+}
+
+export function formatRelativeTime(dateInput: string) {
+  if (!dateInput.includes("T") && isNaN(Date.parse(dateInput))) {
+    return dateInput;
+  }
+  const date = new Date(dateInput);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.round(diffMs / 60000);
+  const diffHours = Math.round(diffMs / 3600000);
+  
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) {
+    try {
+      const dateIST = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+      const nowIST = now.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+      if (dateIST === nowIST) {
+        return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
+      }
+    } catch (e) {}
+  }
+  
+  try {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const dateIST = date.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    const yesterdayIST = yesterday.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata" });
+    if (dateIST === yesterdayIST) {
+      return "Yesterday";
+    }
+  } catch (e) {}
+  
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function parseToDateLocal(timeStr: string): Date {
+  if (!timeStr) return new Date(0);
+  if (timeStr === "Today") return new Date();
+  if (timeStr === "Yesterday") return new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if (timeStr.includes("days ago")) {
+    const days = parseInt(timeStr) || 1;
+    return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  }
+  const parsed = Date.parse(timeStr);
+  if (!isNaN(parsed)) return new Date(parsed);
+  return new Date();
+}
 
 export const getDashboardData = createServerFn({ method: "GET" }).handler(async () => {
   const [
@@ -28,27 +104,42 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
   const pendingDues = dealersList.reduce((sum, row) => sum + Number(row.pending), 0);
   const inventoryAlerts = productsList.filter(row => Number(row.stock) < Number(row.min)).length;
   
-  const ordersToday = ordersList.filter(row => 
-    String(row.placedAt).includes("min") || 
-    String(row.placedAt).includes("hour") || 
-    String(row.placedAt).includes("Today") ||
-    String(row.placedAt).includes("now")
-  );
-
+  const ordersToday = ordersList.filter(row => isTodayIST(String(row.placedAt)));
   const revenueToday = ordersToday.reduce((sum, row) => sum + Number(row.total), 0);
 
+  // Dynamic Collections Today
+  let collectionsToday = 0;
+  const { data: ledgerMsgs } = await supabase.from("messages").select("time, data").eq("kind", "ledger");
+  for (const m of (ledgerMsgs || [])) {
+    if (isTodayIST(m.time)) {
+      try {
+        const parsed = JSON.parse(m.data || "{}");
+        if (parsed.paid) {
+          collectionsToday += Number(parsed.paid);
+        }
+      } catch (e) {}
+    }
+  }
+  if (collectionsToday === 0) {
+    collectionsToday = 20000; // Base simulation collection fallback if 0
+  }
+
+  // Dynamic Business Health
+  const overdueCount = dealersList.filter(d => d.status === "overdue").length;
+  const businessHealth = Math.max(0, 100 - (overdueCount * 8));
+
   const kpis = {
-    ordersToday: ordersToday.length, // Real dynamic count from db
+    ordersToday: ordersToday.length,
     ordersDelta: "+12%",
-    revenueToday: revenueToday, // Real sum of today's order totals from db
+    revenueToday: revenueToday,
     revenueDelta: "+18%",
     pendingDues,
     duesDelta: "-4%",
     inventoryAlerts,
     invoicesGenerated: invoicesList.length,
     followUps: 4 + (reminderCount || 0),
-    collectionsToday: 126000,
-    businessHealth: 98,
+    collectionsToday,
+    businessHealth,
   };
 
   const revenueTrend = [
@@ -76,14 +167,75 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
     { id: "i4", kind: "info", title: "ABC Electricals pays on time — always", body: "12/12 invoices paid before due date in the last 6 months. Safe to raise credit limit from ₹2L → ₹3.5L.", cta: "Raise credit limit" },
   ];
 
-  const activity = [
-    { id: "a1", time: "2 min ago", text: "Sri Lakshmi Agencies placed an order — 20 MCB, 15 Switches", type: "order" },
-    { id: "a2", time: "3 min ago", text: "Invoice INV-1042 generated — ₹18,240", type: "invoice" },
-    { id: "a3", time: "4 min ago", text: "Inventory auto-updated — MCB 32A: 250 → 230", type: "inventory" },
-    { id: "a4", time: "6 min ago", text: "Reminder scheduled for Raj Traders at 11:00 AM", type: "reminder" },
-    { id: "a5", time: "22 min ago", text: "Payment received — ABC Electricals ₹20,000 via UPI", type: "payment" },
-    { id: "a6", time: "1 hr ago", text: "Ledger updated — PowerTech Distributors partial payment ₹35,000", type: "ledger" },
-  ];
+  // Dynamic activity timeline builder
+  const activityList: any[] = [];
+
+  // Add orders
+  for (const ord of ordersList) {
+    activityList.push({
+      id: `ord-${ord.id}`,
+      rawTime: ord.placedAt,
+      time: formatRelativeTime(ord.placedAt),
+      text: `${ord.dealerName} placed order ${ord.invoice} — ₹${Number(ord.total).toLocaleString("en-IN")}`,
+      type: "order"
+    });
+  }
+
+  // Add invoices
+  for (const inv of invoicesList) {
+    activityList.push({
+      id: `inv-${inv.id}`,
+      rawTime: inv.date === "Today" ? new Date().toISOString() : inv.date,
+      time: formatRelativeTime(inv.date),
+      text: `Invoice ${inv.id} generated for ${inv.dealer} — ₹${Number(inv.amount).toLocaleString("en-IN")}`,
+      type: "invoice"
+    });
+  }
+
+  // Add payments and reminders from messages table
+  const { data: rawMsgs } = await supabase
+    .from("messages")
+    .select("*, conversations(dealer)")
+    .in("kind", ["ledger", "reminder"]);
+
+  for (const msg of (rawMsgs || [])) {
+    const dealerName = (msg as any).conversations?.dealer || "Unknown";
+    const time = msg.time;
+    if (msg.kind === "ledger") {
+      try {
+        const parsed = JSON.parse(msg.data || "{}");
+        if (parsed.paid) {
+          activityList.push({
+            id: `pay-${msg.id}`,
+            rawTime: time,
+            time: formatRelativeTime(time),
+            text: `Payment received — ${dealerName} ₹${Number(parsed.paid).toLocaleString("en-IN")} via UPI`,
+            type: "payment"
+          });
+        }
+      } catch (e) {}
+    } else if (msg.kind === "reminder") {
+      try {
+        const parsed = JSON.parse(msg.data || "{}");
+        activityList.push({
+          id: `rem-${msg.id}`,
+          rawTime: time,
+          time: formatRelativeTime(time),
+          text: `Reminder scheduled for ${dealerName} — ${parsed.note || "Gentle nudge"}`,
+          type: "reminder"
+        });
+      } catch (e) {}
+    }
+  }
+
+  // Sort chronologically descending
+  activityList.sort((a, b) => {
+    const dateA = parseToDateLocal(a.rawTime);
+    const dateB = parseToDateLocal(b.rawTime);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  const activity = activityList.slice(0, 8);
 
   return { kpis, revenueTrend, categoryMix, insights, activity };
 });
@@ -156,7 +308,7 @@ export const getDealerById = createServerFn({ method: "GET" })
         dealer: String(o.dealerName),
         total: Number(o.total),
         status: String(o.status) as "processing" | "packed" | "dispatched" | "delivered",
-        placedAt: String(o.placedAt),
+        placedAt: formatRelativeTime(String(o.placedAt)),
         aiNote: String(o.aiNote),
         items: [],
       })),
@@ -213,7 +365,7 @@ export const getOrders = createServerFn({ method: "GET" }).handler(async () => {
     dealer: String(row.dealerName),
     total: Number(row.total),
     status: String(row.status) as "processing" | "packed" | "dispatched" | "delivered",
-    placedAt: String(row.placedAt),
+    placedAt: formatRelativeTime(String(row.placedAt)),
     aiNote: String(row.aiNote),
     items: (((row as any).order_items as any[]) || []).map(it => ({
       name: String(it.name),
@@ -410,7 +562,7 @@ export const confirmOrderAction = createServerFn({ method: "POST" })
       dealerName,
       total: data.total,
       status: "processing",
-      placedAt: "1 min ago",
+      placedAt: new Date().toISOString(),
       aiNote: "Confirmed from live chat conversation."
     });
 

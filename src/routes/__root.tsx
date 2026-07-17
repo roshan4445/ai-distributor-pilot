@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 
@@ -117,12 +117,133 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function LoginComponent({ onLoginSuccess }: { onLoginSuccess: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    setTimeout(() => {
+      if (username === "distributor" && password === "123") {
+        localStorage.setItem("isLoggedIn", "true");
+        onLoginSuccess();
+      } else {
+        setError("Invalid username or password. Try again.");
+        setLoading(false);
+      }
+    }, 600);
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 font-sans text-slate-100 selection:bg-blue-600/30 relative overflow-hidden">
+      {/* Background gradients */}
+      <div className="absolute top-1/4 left-1/4 h-72 w-72 rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-blue-600/10 blur-[130px] pointer-events-none" />
+
+      <div className="relative w-full max-w-[420px] rounded-3xl border border-slate-800/80 bg-slate-900/40 p-8 shadow-2xl backdrop-blur-xl md:p-10">
+        {/* Logo and header */}
+        <div className="flex flex-col items-center text-center">
+          <div className="grid place-items-center h-12 w-12 rounded-2xl bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-6 w-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+          </div>
+          <h1 className="mt-6 text-[22px] font-bold tracking-tight text-white">AI Distributor Copilot</h1>
+          <p className="mt-2 text-[13px] text-slate-400">Log in to manage orders, inventory, and ledger books</p>
+        </div>
+
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Username</label>
+            <input
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. distributor"
+              className="w-full h-11 px-4 rounded-xl border border-slate-800 bg-slate-950/50 text-[13.5px] placeholder:text-slate-600 text-white focus:border-indigo-500/50 focus:bg-slate-950 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Password</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full h-11 px-4 rounded-xl border border-slate-800 bg-slate-950/50 text-[13.5px] placeholder:text-slate-600 text-white focus:border-indigo-500/50 focus:bg-slate-950 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[12.5px] text-red-400 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="h-4.5 w-4.5 shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-[13.5px] font-semibold text-white shadow-[0_4px_15px_rgba(79,70,229,0.3)] hover:shadow-[0_4px_20px_rgba(79,70,229,0.45)] disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            ) : "Log In"}
+          </button>
+        </form>
+
+        <div className="mt-8 pt-6 border-t border-slate-800/60 text-center text-[11.5px] text-slate-500">
+          Demo Username: <span className="text-slate-300 font-mono">distributor</span><br />
+          Demo Password: <span className="text-slate-300 font-mono">123</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const logged = localStorage.getItem("isLoggedIn") === "true";
+    setIsAuthenticated(logged);
+    setChecking(false);
+  }, []);
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <LoginComponent onLoginSuccess={() => setIsAuthenticated(true)} />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>
   );
