@@ -1,10 +1,244 @@
 import { o as __toESM, t as __commonJSMin } from "../../_runtime.mjs";
-import { n as require_base64_js } from "../@google/genai.mjs";
 import { n as dereference, r as deepCompareStrict, t as validate$4 } from "../cfworker__json-schema.mjs";
 import * as nodeFs from "node:fs";
 import * as nodeFsPromises from "node:fs/promises";
 import * as nodePath from "node:path";
 import { Worker } from "node:worker_threads";
+//#region node_modules/eventemitter3/index.js
+var require_eventemitter3 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var has = Object.prototype.hasOwnProperty, prefix = "~";
+	/**
+	* Constructor to create a storage for our `EE` objects.
+	* An `Events` instance is a plain object whose properties are event names.
+	*
+	* @constructor
+	* @private
+	*/
+	function Events() {}
+	if (Object.create) {
+		Events.prototype = Object.create(null);
+		if (!new Events().__proto__) prefix = false;
+	}
+	/**
+	* Representation of a single event listener.
+	*
+	* @param {Function} fn The listener function.
+	* @param {*} context The context to invoke the listener with.
+	* @param {Boolean} [once=false] Specify if the listener is a one-time listener.
+	* @constructor
+	* @private
+	*/
+	function EE(fn, context, once) {
+		this.fn = fn;
+		this.context = context;
+		this.once = once || false;
+	}
+	/**
+	* Add a listener for a given event.
+	*
+	* @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
+	* @param {(String|Symbol)} event The event name.
+	* @param {Function} fn The listener function.
+	* @param {*} context The context to invoke the listener with.
+	* @param {Boolean} once Specify if the listener is a one-time listener.
+	* @returns {EventEmitter}
+	* @private
+	*/
+	function addListener(emitter, event, fn, context, once) {
+		if (typeof fn !== "function") throw new TypeError("The listener must be a function");
+		var listener = new EE(fn, context || emitter, once), evt = prefix ? prefix + event : event;
+		if (!emitter._events[evt]) emitter._events[evt] = listener, emitter._eventsCount++;
+		else if (!emitter._events[evt].fn) emitter._events[evt].push(listener);
+		else emitter._events[evt] = [emitter._events[evt], listener];
+		return emitter;
+	}
+	/**
+	* Clear event by name.
+	*
+	* @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
+	* @param {(String|Symbol)} evt The Event name.
+	* @private
+	*/
+	function clearEvent(emitter, evt) {
+		if (--emitter._eventsCount === 0) emitter._events = new Events();
+		else delete emitter._events[evt];
+	}
+	/**
+	* Minimal `EventEmitter` interface that is molded against the Node.js
+	* `EventEmitter` interface.
+	*
+	* @constructor
+	* @public
+	*/
+	function EventEmitter() {
+		this._events = new Events();
+		this._eventsCount = 0;
+	}
+	/**
+	* Return an array listing the events for which the emitter has registered
+	* listeners.
+	*
+	* @returns {Array}
+	* @public
+	*/
+	EventEmitter.prototype.eventNames = function eventNames() {
+		var names = [], events, name;
+		if (this._eventsCount === 0) return names;
+		for (name in events = this._events) if (has.call(events, name)) names.push(prefix ? name.slice(1) : name);
+		if (Object.getOwnPropertySymbols) return names.concat(Object.getOwnPropertySymbols(events));
+		return names;
+	};
+	/**
+	* Return the listeners registered for a given event.
+	*
+	* @param {(String|Symbol)} event The event name.
+	* @returns {Array} The registered listeners.
+	* @public
+	*/
+	EventEmitter.prototype.listeners = function listeners(event) {
+		var evt = prefix ? prefix + event : event, handlers = this._events[evt];
+		if (!handlers) return [];
+		if (handlers.fn) return [handlers.fn];
+		for (var i = 0, l = handlers.length, ee = new Array(l); i < l; i++) ee[i] = handlers[i].fn;
+		return ee;
+	};
+	/**
+	* Return the number of listeners listening to a given event.
+	*
+	* @param {(String|Symbol)} event The event name.
+	* @returns {Number} The number of listeners.
+	* @public
+	*/
+	EventEmitter.prototype.listenerCount = function listenerCount(event) {
+		var evt = prefix ? prefix + event : event, listeners = this._events[evt];
+		if (!listeners) return 0;
+		if (listeners.fn) return 1;
+		return listeners.length;
+	};
+	/**
+	* Calls each of the listeners registered for a given event.
+	*
+	* @param {(String|Symbol)} event The event name.
+	* @returns {Boolean} `true` if the event had listeners, else `false`.
+	* @public
+	*/
+	EventEmitter.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
+		var evt = prefix ? prefix + event : event;
+		if (!this._events[evt]) return false;
+		var listeners = this._events[evt], len = arguments.length, args, i;
+		if (listeners.fn) {
+			if (listeners.once) this.removeListener(event, listeners.fn, void 0, true);
+			switch (len) {
+				case 1: return listeners.fn.call(listeners.context), true;
+				case 2: return listeners.fn.call(listeners.context, a1), true;
+				case 3: return listeners.fn.call(listeners.context, a1, a2), true;
+				case 4: return listeners.fn.call(listeners.context, a1, a2, a3), true;
+				case 5: return listeners.fn.call(listeners.context, a1, a2, a3, a4), true;
+				case 6: return listeners.fn.call(listeners.context, a1, a2, a3, a4, a5), true;
+			}
+			for (i = 1, args = new Array(len - 1); i < len; i++) args[i - 1] = arguments[i];
+			listeners.fn.apply(listeners.context, args);
+		} else {
+			var length = listeners.length, j;
+			for (i = 0; i < length; i++) {
+				if (listeners[i].once) this.removeListener(event, listeners[i].fn, void 0, true);
+				switch (len) {
+					case 1:
+						listeners[i].fn.call(listeners[i].context);
+						break;
+					case 2:
+						listeners[i].fn.call(listeners[i].context, a1);
+						break;
+					case 3:
+						listeners[i].fn.call(listeners[i].context, a1, a2);
+						break;
+					case 4:
+						listeners[i].fn.call(listeners[i].context, a1, a2, a3);
+						break;
+					default:
+						if (!args) for (j = 1, args = new Array(len - 1); j < len; j++) args[j - 1] = arguments[j];
+						listeners[i].fn.apply(listeners[i].context, args);
+				}
+			}
+		}
+		return true;
+	};
+	/**
+	* Add a listener for a given event.
+	*
+	* @param {(String|Symbol)} event The event name.
+	* @param {Function} fn The listener function.
+	* @param {*} [context=this] The context to invoke the listener with.
+	* @returns {EventEmitter} `this`.
+	* @public
+	*/
+	EventEmitter.prototype.on = function on(event, fn, context) {
+		return addListener(this, event, fn, context, false);
+	};
+	/**
+	* Add a one-time listener for a given event.
+	*
+	* @param {(String|Symbol)} event The event name.
+	* @param {Function} fn The listener function.
+	* @param {*} [context=this] The context to invoke the listener with.
+	* @returns {EventEmitter} `this`.
+	* @public
+	*/
+	EventEmitter.prototype.once = function once(event, fn, context) {
+		return addListener(this, event, fn, context, true);
+	};
+	/**
+	* Remove the listeners of a given event.
+	*
+	* @param {(String|Symbol)} event The event name.
+	* @param {Function} fn Only remove the listeners that match this function.
+	* @param {*} context Only remove the listeners that have this context.
+	* @param {Boolean} once Only remove one-time listeners.
+	* @returns {EventEmitter} `this`.
+	* @public
+	*/
+	EventEmitter.prototype.removeListener = function removeListener(event, fn, context, once) {
+		var evt = prefix ? prefix + event : event;
+		if (!this._events[evt]) return this;
+		if (!fn) {
+			clearEvent(this, evt);
+			return this;
+		}
+		var listeners = this._events[evt];
+		if (listeners.fn) {
+			if (listeners.fn === fn && (!once || listeners.once) && (!context || listeners.context === context)) clearEvent(this, evt);
+		} else {
+			for (var i = 0, events = [], length = listeners.length; i < length; i++) if (listeners[i].fn !== fn || once && !listeners[i].once || context && listeners[i].context !== context) events.push(listeners[i]);
+			if (events.length) this._events[evt] = events.length === 1 ? events[0] : events;
+			else clearEvent(this, evt);
+		}
+		return this;
+	};
+	/**
+	* Remove all listeners, or those of the specified event.
+	*
+	* @param {(String|Symbol)} [event] The event name.
+	* @returns {EventEmitter} `this`.
+	* @public
+	*/
+	EventEmitter.prototype.removeAllListeners = function removeAllListeners(event) {
+		var evt;
+		if (event) {
+			evt = prefix ? prefix + event : event;
+			if (this._events[evt]) clearEvent(this, evt);
+		} else {
+			this._events = new Events();
+			this._eventsCount = 0;
+		}
+		return this;
+	};
+	EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
+	EventEmitter.prototype.addListener = EventEmitter.prototype.on;
+	EventEmitter.prefixed = prefix;
+	EventEmitter.EventEmitter = EventEmitter;
+	if ("undefined" !== typeof module) module.exports = EventEmitter;
+}));
+//#endregion
 //#region node_modules/@langchain/core/dist/_virtual/_rolldown/runtime.js
 var __defProp$1 = Object.defineProperty;
 var __exportAll = (all, no_symbols) => {
@@ -12106,8 +12340,8 @@ var LangSmithToOTELTranslator = class {
 };
 //#endregion
 //#region node_modules/langsmith/dist/utils/is-network-error/index.js
-var objectToString$2 = Object.prototype.toString;
-var isError$1 = (value) => objectToString$2.call(value) === "[object Error]";
+var objectToString$1 = Object.prototype.toString;
+var isError$1 = (value) => objectToString$1.call(value) === "[object Error]";
 var errorMessages$1 = /* @__PURE__ */ new Set([
 	"network error",
 	"Failed to fetch",
@@ -12262,241 +12496,6 @@ async function pRetry$1(input, options = {}) {
 	}
 	throw new Error("Retry attempts exhausted without throwing an error.");
 }
-//#endregion
-//#region node_modules/eventemitter3/index.js
-var require_eventemitter3 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var has = Object.prototype.hasOwnProperty, prefix = "~";
-	/**
-	* Constructor to create a storage for our `EE` objects.
-	* An `Events` instance is a plain object whose properties are event names.
-	*
-	* @constructor
-	* @private
-	*/
-	function Events() {}
-	if (Object.create) {
-		Events.prototype = Object.create(null);
-		if (!new Events().__proto__) prefix = false;
-	}
-	/**
-	* Representation of a single event listener.
-	*
-	* @param {Function} fn The listener function.
-	* @param {*} context The context to invoke the listener with.
-	* @param {Boolean} [once=false] Specify if the listener is a one-time listener.
-	* @constructor
-	* @private
-	*/
-	function EE(fn, context, once) {
-		this.fn = fn;
-		this.context = context;
-		this.once = once || false;
-	}
-	/**
-	* Add a listener for a given event.
-	*
-	* @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
-	* @param {(String|Symbol)} event The event name.
-	* @param {Function} fn The listener function.
-	* @param {*} context The context to invoke the listener with.
-	* @param {Boolean} once Specify if the listener is a one-time listener.
-	* @returns {EventEmitter}
-	* @private
-	*/
-	function addListener(emitter, event, fn, context, once) {
-		if (typeof fn !== "function") throw new TypeError("The listener must be a function");
-		var listener = new EE(fn, context || emitter, once), evt = prefix ? prefix + event : event;
-		if (!emitter._events[evt]) emitter._events[evt] = listener, emitter._eventsCount++;
-		else if (!emitter._events[evt].fn) emitter._events[evt].push(listener);
-		else emitter._events[evt] = [emitter._events[evt], listener];
-		return emitter;
-	}
-	/**
-	* Clear event by name.
-	*
-	* @param {EventEmitter} emitter Reference to the `EventEmitter` instance.
-	* @param {(String|Symbol)} evt The Event name.
-	* @private
-	*/
-	function clearEvent(emitter, evt) {
-		if (--emitter._eventsCount === 0) emitter._events = new Events();
-		else delete emitter._events[evt];
-	}
-	/**
-	* Minimal `EventEmitter` interface that is molded against the Node.js
-	* `EventEmitter` interface.
-	*
-	* @constructor
-	* @public
-	*/
-	function EventEmitter() {
-		this._events = new Events();
-		this._eventsCount = 0;
-	}
-	/**
-	* Return an array listing the events for which the emitter has registered
-	* listeners.
-	*
-	* @returns {Array}
-	* @public
-	*/
-	EventEmitter.prototype.eventNames = function eventNames() {
-		var names = [], events, name;
-		if (this._eventsCount === 0) return names;
-		for (name in events = this._events) if (has.call(events, name)) names.push(prefix ? name.slice(1) : name);
-		if (Object.getOwnPropertySymbols) return names.concat(Object.getOwnPropertySymbols(events));
-		return names;
-	};
-	/**
-	* Return the listeners registered for a given event.
-	*
-	* @param {(String|Symbol)} event The event name.
-	* @returns {Array} The registered listeners.
-	* @public
-	*/
-	EventEmitter.prototype.listeners = function listeners(event) {
-		var evt = prefix ? prefix + event : event, handlers = this._events[evt];
-		if (!handlers) return [];
-		if (handlers.fn) return [handlers.fn];
-		for (var i = 0, l = handlers.length, ee = new Array(l); i < l; i++) ee[i] = handlers[i].fn;
-		return ee;
-	};
-	/**
-	* Return the number of listeners listening to a given event.
-	*
-	* @param {(String|Symbol)} event The event name.
-	* @returns {Number} The number of listeners.
-	* @public
-	*/
-	EventEmitter.prototype.listenerCount = function listenerCount(event) {
-		var evt = prefix ? prefix + event : event, listeners = this._events[evt];
-		if (!listeners) return 0;
-		if (listeners.fn) return 1;
-		return listeners.length;
-	};
-	/**
-	* Calls each of the listeners registered for a given event.
-	*
-	* @param {(String|Symbol)} event The event name.
-	* @returns {Boolean} `true` if the event had listeners, else `false`.
-	* @public
-	*/
-	EventEmitter.prototype.emit = function emit(event, a1, a2, a3, a4, a5) {
-		var evt = prefix ? prefix + event : event;
-		if (!this._events[evt]) return false;
-		var listeners = this._events[evt], len = arguments.length, args, i;
-		if (listeners.fn) {
-			if (listeners.once) this.removeListener(event, listeners.fn, void 0, true);
-			switch (len) {
-				case 1: return listeners.fn.call(listeners.context), true;
-				case 2: return listeners.fn.call(listeners.context, a1), true;
-				case 3: return listeners.fn.call(listeners.context, a1, a2), true;
-				case 4: return listeners.fn.call(listeners.context, a1, a2, a3), true;
-				case 5: return listeners.fn.call(listeners.context, a1, a2, a3, a4), true;
-				case 6: return listeners.fn.call(listeners.context, a1, a2, a3, a4, a5), true;
-			}
-			for (i = 1, args = new Array(len - 1); i < len; i++) args[i - 1] = arguments[i];
-			listeners.fn.apply(listeners.context, args);
-		} else {
-			var length = listeners.length, j;
-			for (i = 0; i < length; i++) {
-				if (listeners[i].once) this.removeListener(event, listeners[i].fn, void 0, true);
-				switch (len) {
-					case 1:
-						listeners[i].fn.call(listeners[i].context);
-						break;
-					case 2:
-						listeners[i].fn.call(listeners[i].context, a1);
-						break;
-					case 3:
-						listeners[i].fn.call(listeners[i].context, a1, a2);
-						break;
-					case 4:
-						listeners[i].fn.call(listeners[i].context, a1, a2, a3);
-						break;
-					default:
-						if (!args) for (j = 1, args = new Array(len - 1); j < len; j++) args[j - 1] = arguments[j];
-						listeners[i].fn.apply(listeners[i].context, args);
-				}
-			}
-		}
-		return true;
-	};
-	/**
-	* Add a listener for a given event.
-	*
-	* @param {(String|Symbol)} event The event name.
-	* @param {Function} fn The listener function.
-	* @param {*} [context=this] The context to invoke the listener with.
-	* @returns {EventEmitter} `this`.
-	* @public
-	*/
-	EventEmitter.prototype.on = function on(event, fn, context) {
-		return addListener(this, event, fn, context, false);
-	};
-	/**
-	* Add a one-time listener for a given event.
-	*
-	* @param {(String|Symbol)} event The event name.
-	* @param {Function} fn The listener function.
-	* @param {*} [context=this] The context to invoke the listener with.
-	* @returns {EventEmitter} `this`.
-	* @public
-	*/
-	EventEmitter.prototype.once = function once(event, fn, context) {
-		return addListener(this, event, fn, context, true);
-	};
-	/**
-	* Remove the listeners of a given event.
-	*
-	* @param {(String|Symbol)} event The event name.
-	* @param {Function} fn Only remove the listeners that match this function.
-	* @param {*} context Only remove the listeners that have this context.
-	* @param {Boolean} once Only remove one-time listeners.
-	* @returns {EventEmitter} `this`.
-	* @public
-	*/
-	EventEmitter.prototype.removeListener = function removeListener(event, fn, context, once) {
-		var evt = prefix ? prefix + event : event;
-		if (!this._events[evt]) return this;
-		if (!fn) {
-			clearEvent(this, evt);
-			return this;
-		}
-		var listeners = this._events[evt];
-		if (listeners.fn) {
-			if (listeners.fn === fn && (!once || listeners.once) && (!context || listeners.context === context)) clearEvent(this, evt);
-		} else {
-			for (var i = 0, events = [], length = listeners.length; i < length; i++) if (listeners[i].fn !== fn || once && !listeners[i].once || context && listeners[i].context !== context) events.push(listeners[i]);
-			if (events.length) this._events[evt] = events.length === 1 ? events[0] : events;
-			else clearEvent(this, evt);
-		}
-		return this;
-	};
-	/**
-	* Remove all listeners, or those of the specified event.
-	*
-	* @param {(String|Symbol)} [event] The event name.
-	* @returns {EventEmitter} `this`.
-	* @public
-	*/
-	EventEmitter.prototype.removeAllListeners = function removeAllListeners(event) {
-		var evt;
-		if (event) {
-			evt = prefix ? prefix + event : event;
-			if (this._events[evt]) clearEvent(this, evt);
-		} else {
-			this._events = new Events();
-			this._eventsCount = 0;
-		}
-		return this;
-	};
-	EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
-	EventEmitter.prototype.addListener = EventEmitter.prototype.on;
-	EventEmitter.prefixed = prefix;
-	EventEmitter.EventEmitter = EventEmitter;
-	if ("undefined" !== typeof module) module.exports = EventEmitter;
-}));
 //#endregion
 //#region node_modules/p-finally/index.js
 var require_p_finally = /* @__PURE__ */ __commonJSMin(((exports, module) => {
@@ -13096,8 +13095,8 @@ var startsWithSchemeRegexp = /^[a-z][a-z0-9+.-]*:/i;
 var isAbsoluteURL = (url) => {
 	return startsWithSchemeRegexp.test(url);
 };
-var isArray$1 = (val) => (isArray$1 = Array.isArray, isArray$1(val));
-var isReadonlyArray = isArray$1;
+var isArray = (val) => (isArray = Array.isArray, isArray(val));
+var isReadonlyArray = isArray;
 /** Returns an object if the given value isn't an object, otherwise returns as-is */
 function maybeObj(x) {
 	if (typeof x !== "object") return {};
@@ -13352,7 +13351,7 @@ function is_buffer(obj) {
 	return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
 }
 function maybe_map(val, fn) {
-	if (isArray$1(val)) {
+	if (isArray(val)) {
 		const mapped = [];
 		for (let i = 0; i < val.length; i += 1) mapped.push(fn(val[i]));
 		return mapped;
@@ -13374,7 +13373,7 @@ var array_prefix_generators = {
 	}
 };
 var push_to_array = function(arr, value_or_array) {
-	Array.prototype.push.apply(arr, isArray$1(value_or_array) ? value_or_array : [value_or_array]);
+	Array.prototype.push.apply(arr, isArray(value_or_array) ? value_or_array : [value_or_array]);
 };
 var toISOString;
 var defaults = {
@@ -13417,7 +13416,7 @@ function inner_stringify(object, prefix, generateArrayPrefix, commaRoundTrip, al
 	}
 	if (typeof filter === "function") obj = filter(prefix, obj);
 	else if (obj instanceof Date) obj = serializeDate?.(obj);
-	else if (generateArrayPrefix === "comma" && isArray$1(obj)) obj = maybe_map(obj, function(value) {
+	else if (generateArrayPrefix === "comma" && isArray(obj)) obj = maybe_map(obj, function(value) {
 		if (value instanceof Date) return serializeDate?.(value);
 		return value;
 	});
@@ -13435,27 +13434,27 @@ function inner_stringify(object, prefix, generateArrayPrefix, commaRoundTrip, al
 	const values = [];
 	if (typeof obj === "undefined") return values;
 	let obj_keys;
-	if (generateArrayPrefix === "comma" && isArray$1(obj)) {
+	if (generateArrayPrefix === "comma" && isArray(obj)) {
 		if (encodeValuesOnly && encoder) obj = maybe_map(obj, encoder);
 		obj_keys = [{ value: obj.length > 0 ? obj.join(",") || null : void 0 }];
-	} else if (isArray$1(filter)) obj_keys = filter;
+	} else if (isArray(filter)) obj_keys = filter;
 	else {
 		const keys = Object.keys(obj);
 		obj_keys = sort ? keys.sort(sort) : keys;
 	}
 	const encoded_prefix = encodeDotInKeys ? String(prefix).replace(/\./g, "%2E") : String(prefix);
-	const adjusted_prefix = commaRoundTrip && isArray$1(obj) && obj.length === 1 ? encoded_prefix + "[]" : encoded_prefix;
-	if (allowEmptyArrays && isArray$1(obj) && obj.length === 0) return adjusted_prefix + "[]";
+	const adjusted_prefix = commaRoundTrip && isArray(obj) && obj.length === 1 ? encoded_prefix + "[]" : encoded_prefix;
+	if (allowEmptyArrays && isArray(obj) && obj.length === 0) return adjusted_prefix + "[]";
 	for (let j = 0; j < obj_keys.length; ++j) {
 		const key = obj_keys[j];
 		const value = typeof key === "object" && typeof key.value !== "undefined" ? key.value : obj[key];
 		if (skipNulls && value === null) continue;
 		const encoded_key = allowDots && encodeDotInKeys ? key.replace(/\./g, "%2E") : key;
-		const key_prefix = isArray$1(obj) ? typeof generateArrayPrefix === "function" ? generateArrayPrefix(adjusted_prefix, encoded_key) : adjusted_prefix : adjusted_prefix + (allowDots ? "." + encoded_key : "[" + encoded_key + "]");
+		const key_prefix = isArray(obj) ? typeof generateArrayPrefix === "function" ? generateArrayPrefix(adjusted_prefix, encoded_key) : adjusted_prefix : adjusted_prefix + (allowDots ? "." + encoded_key : "[" + encoded_key + "]");
 		sideChannel.set(object, step);
 		const valueSideChannel = /* @__PURE__ */ new WeakMap();
 		valueSideChannel.set(sentinel, sideChannel);
-		push_to_array(values, inner_stringify(value, key_prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, generateArrayPrefix === "comma" && encodeValuesOnly && isArray$1(obj) ? null : encoder, filter, sort, allowDots, serializeDate, format, formatter, encodeValuesOnly, charset, valueSideChannel));
+		push_to_array(values, inner_stringify(value, key_prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, generateArrayPrefix === "comma" && encodeValuesOnly && isArray(obj) ? null : encoder, filter, sort, allowDots, serializeDate, format, formatter, encodeValuesOnly, charset, valueSideChannel));
 	}
 	return values;
 }
@@ -13472,7 +13471,7 @@ function normalize_stringify_options(opts = defaults) {
 	}
 	const formatter = formatters[format];
 	let filter = defaults.filter;
-	if (typeof opts.filter === "function" || isArray$1(opts.filter)) filter = opts.filter;
+	if (typeof opts.filter === "function" || isArray(opts.filter)) filter = opts.filter;
 	let arrayFormat;
 	if (opts.arrayFormat && opts.arrayFormat in array_prefix_generators) arrayFormat = opts.arrayFormat;
 	else if ("indices" in opts) arrayFormat = opts.indices ? "indices" : "repeat";
@@ -13509,7 +13508,7 @@ function stringify(object, opts = {}) {
 	if (typeof options.filter === "function") {
 		filter = options.filter;
 		obj = filter("", obj);
-	} else if (isArray$1(options.filter)) {
+	} else if (isArray(options.filter)) {
 		filter = options.filter;
 		obj_keys = filter;
 	}
@@ -24582,8 +24581,8 @@ var EventStreamCallbackHandler = class extends BaseTracer {
 };
 //#endregion
 //#region node_modules/@langchain/core/dist/utils/is-network-error/index.js
-var objectToString$1 = Object.prototype.toString;
-var isError = (value) => objectToString$1.call(value) === "[object Error]";
+var objectToString = Object.prototype.toString;
+var isError = (value) => objectToString.call(value) === "[object Error]";
 var errorMessages = /* @__PURE__ */ new Set([
 	"network error",
 	"Failed to fetch",
@@ -27479,40 +27478,58 @@ var ChatPromptValue = class extends BasePromptValue {
 		return this.messages;
 	}
 };
-/**
-* Class that represents an image prompt value. It extends the
-* BasePromptValue and includes an ImageURL instance.
-*/
-var ImagePromptValue = class extends BasePromptValue {
-	lc_namespace = ["langchain_core", "prompt_values"];
-	lc_serializable = true;
-	static lc_name() {
-		return "ImagePromptValue";
-	}
-	imageUrl;
-	/** @ignore */
-	value;
-	constructor(fields) {
-		if (!("imageUrl" in fields)) fields = { imageUrl: fields };
-		super(fields);
-		this.imageUrl = fields.imageUrl;
-	}
-	toString() {
-		return this.imageUrl.url;
-	}
-	toChatMessages() {
-		return [new HumanMessage({ content: [{
-			type: "image_url",
-			image_url: {
-				detail: this.imageUrl.detail,
-				url: this.imageUrl.url
-			}
-		}] })];
-	}
-};
 //#endregion
 //#region node_modules/js-tiktoken/dist/chunk-VL2OQCWN.js
-var import_base64_js = /* @__PURE__ */ __toESM(require_base64_js(), 1);
+var import_base64_js = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin(((exports) => {
+	exports.toByteArray = toByteArray;
+	var lookup = [];
+	var revLookup = [];
+	var Arr = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
+	var code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	for (var i = 0, len = code.length; i < len; ++i) {
+		lookup[i] = code[i];
+		revLookup[code.charCodeAt(i)] = i;
+	}
+	revLookup["-".charCodeAt(0)] = 62;
+	revLookup["_".charCodeAt(0)] = 63;
+	function getLens(b64) {
+		var len = b64.length;
+		if (len % 4 > 0) throw new Error("Invalid string. Length must be a multiple of 4");
+		var validLen = b64.indexOf("=");
+		if (validLen === -1) validLen = len;
+		var placeHoldersLen = validLen === len ? 0 : 4 - validLen % 4;
+		return [validLen, placeHoldersLen];
+	}
+	function _byteLength(b64, validLen, placeHoldersLen) {
+		return (validLen + placeHoldersLen) * 3 / 4 - placeHoldersLen;
+	}
+	function toByteArray(b64) {
+		var tmp;
+		var lens = getLens(b64);
+		var validLen = lens[0];
+		var placeHoldersLen = lens[1];
+		var arr = new Arr(_byteLength(b64, validLen, placeHoldersLen));
+		var curByte = 0;
+		var len = placeHoldersLen > 0 ? validLen - 4 : validLen;
+		var i;
+		for (i = 0; i < len; i += 4) {
+			tmp = revLookup[b64.charCodeAt(i)] << 18 | revLookup[b64.charCodeAt(i + 1)] << 12 | revLookup[b64.charCodeAt(i + 2)] << 6 | revLookup[b64.charCodeAt(i + 3)];
+			arr[curByte++] = tmp >> 16 & 255;
+			arr[curByte++] = tmp >> 8 & 255;
+			arr[curByte++] = tmp & 255;
+		}
+		if (placeHoldersLen === 2) {
+			tmp = revLookup[b64.charCodeAt(i)] << 2 | revLookup[b64.charCodeAt(i + 1)] >> 4;
+			arr[curByte++] = tmp & 255;
+		}
+		if (placeHoldersLen === 1) {
+			tmp = revLookup[b64.charCodeAt(i)] << 10 | revLookup[b64.charCodeAt(i + 1)] << 4 | revLookup[b64.charCodeAt(i + 2)] >> 2;
+			arr[curByte++] = tmp >> 8 & 255;
+			arr[curByte++] = tmp & 255;
+		}
+		return arr;
+	}
+})))(), 1);
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, {
 	enumerable: true,
@@ -30867,1584 +30884,6 @@ function convertToOpenAITool(tool, fields) {
 	return toolDef;
 }
 //#endregion
-//#region node_modules/@langchain/core/dist/prompts/base.js
-/**
-* Base class for prompt templates. Exposes a format method that returns a
-* string prompt given a set of input values.
-*/
-var BasePromptTemplate = class extends Runnable {
-	lc_serializable = true;
-	lc_namespace = [
-		"langchain_core",
-		"prompts",
-		this._getPromptType()
-	];
-	get lc_attributes() {
-		return { partialVariables: void 0 };
-	}
-	inputVariables;
-	outputParser;
-	partialVariables;
-	/**
-	* Metadata to be used for tracing.
-	*/
-	metadata;
-	/** Tags to be used for tracing. */
-	tags;
-	constructor(input) {
-		super(input);
-		const { inputVariables } = input;
-		if (inputVariables.includes("stop")) throw new Error("Cannot have an input variable named 'stop', as it is used internally, please rename.");
-		Object.assign(this, input);
-	}
-	/**
-	* Merges partial variables and user variables.
-	* @param userVariables The user variables to merge with the partial variables.
-	* @returns A Promise that resolves to an object containing the merged variables.
-	*/
-	async mergePartialAndUserVariables(userVariables) {
-		const partialVariables = this.partialVariables ?? {};
-		const partialValues = {};
-		for (const [key, value] of Object.entries(partialVariables)) if (typeof value === "string") partialValues[key] = value;
-		else partialValues[key] = await value();
-		return {
-			...partialValues,
-			...userVariables
-		};
-	}
-	/**
-	* Invokes the prompt template with the given input and options.
-	* @param input The input to invoke the prompt template with.
-	* @param options Optional configuration for the callback.
-	* @returns A Promise that resolves to the output of the prompt template.
-	*/
-	async invoke(input, options) {
-		const metadata = {
-			...this.metadata,
-			...options?.metadata
-		};
-		const tags = [...this.tags ?? [], ...options?.tags ?? []];
-		return this._callWithConfig((input) => this.formatPromptValue(input), input, {
-			...options,
-			tags,
-			metadata,
-			runType: "prompt"
-		});
-	}
-};
-//#endregion
-//#region node_modules/@langchain/core/dist/prompts/string.js
-/**
-* Base class for string prompt templates. It extends the
-* BasePromptTemplate class and overrides the formatPromptValue method to
-* return a StringPromptValue.
-*/
-var BaseStringPromptTemplate = class extends BasePromptTemplate {
-	/**
-	* Formats the prompt given the input values and returns a formatted
-	* prompt value.
-	* @param values The input values to format the prompt.
-	* @returns A Promise that resolves to a formatted prompt value.
-	*/
-	async formatPromptValue(values) {
-		return new StringPromptValue(await this.format(values));
-	}
-};
-//#endregion
-//#region node_modules/mustache/mustache.mjs
-/*!
-* mustache.js - Logic-less {{mustache}} templates with JavaScript
-* http://github.com/janl/mustache.js
-*/
-var objectToString = Object.prototype.toString;
-var isArray = Array.isArray || function isArrayPolyfill(object) {
-	return objectToString.call(object) === "[object Array]";
-};
-function isFunction(object) {
-	return typeof object === "function";
-}
-/**
-* More correct typeof string handling array
-* which normally returns typeof 'object'
-*/
-function typeStr(obj) {
-	return isArray(obj) ? "array" : typeof obj;
-}
-function escapeRegExp(string) {
-	return string.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&");
-}
-/**
-* Null safe way of checking whether or not an object,
-* including its prototype, has a given property
-*/
-function hasProperty(obj, propName) {
-	return obj != null && typeof obj === "object" && propName in obj;
-}
-/**
-* Safe way of detecting whether or not the given thing is a primitive and
-* whether it has the given property
-*/
-function primitiveHasOwnProperty(primitive, propName) {
-	return primitive != null && typeof primitive !== "object" && primitive.hasOwnProperty && primitive.hasOwnProperty(propName);
-}
-var regExpTest = RegExp.prototype.test;
-function testRegExp(re, string) {
-	return regExpTest.call(re, string);
-}
-var nonSpaceRe = /\S/;
-function isWhitespace(string) {
-	return !testRegExp(nonSpaceRe, string);
-}
-var entityMap = {
-	"&": "&amp;",
-	"<": "&lt;",
-	">": "&gt;",
-	"\"": "&quot;",
-	"'": "&#39;",
-	"/": "&#x2F;",
-	"`": "&#x60;",
-	"=": "&#x3D;"
-};
-function escapeHtml(string) {
-	return String(string).replace(/[&<>"'`=\/]/g, function fromEntityMap(s) {
-		return entityMap[s];
-	});
-}
-var whiteRe = /\s*/;
-var spaceRe = /\s+/;
-var equalsRe = /\s*=/;
-var curlyRe = /\s*\}/;
-var tagRe = /#|\^|\/|>|\{|&|=|!/;
-/**
-* Breaks up the given `template` string into a tree of tokens. If the `tags`
-* argument is given here it must be an array with two string values: the
-* opening and closing tags used in the template (e.g. [ "<%", "%>" ]). Of
-* course, the default is to use mustaches (i.e. mustache.tags).
-*
-* A token is an array with at least 4 elements. The first element is the
-* mustache symbol that was used inside the tag, e.g. "#" or "&". If the tag
-* did not contain a symbol (i.e. {{myValue}}) this element is "name". For
-* all text that appears outside a symbol this element is "text".
-*
-* The second element of a token is its "value". For mustache tags this is
-* whatever else was inside the tag besides the opening symbol. For text tokens
-* this is the text itself.
-*
-* The third and fourth elements of the token are the start and end indices,
-* respectively, of the token in the original template.
-*
-* Tokens that are the root node of a subtree contain two more elements: 1) an
-* array of tokens in the subtree and 2) the index in the original template at
-* which the closing tag for that section begins.
-*
-* Tokens for partials also contain two more elements: 1) a string value of
-* indendation prior to that tag and 2) the index of that tag on that line -
-* eg a value of 2 indicates the partial is the third tag on this line.
-*/
-function parseTemplate$1(template, tags) {
-	if (!template) return [];
-	var lineHasNonSpace = false;
-	var sections = [];
-	var tokens = [];
-	var spaces = [];
-	var hasTag = false;
-	var nonSpace = false;
-	var indentation = "";
-	var tagIndex = 0;
-	function stripSpace() {
-		if (hasTag && !nonSpace) while (spaces.length) delete tokens[spaces.pop()];
-		else spaces = [];
-		hasTag = false;
-		nonSpace = false;
-	}
-	var openingTagRe, closingTagRe, closingCurlyRe;
-	function compileTags(tagsToCompile) {
-		if (typeof tagsToCompile === "string") tagsToCompile = tagsToCompile.split(spaceRe, 2);
-		if (!isArray(tagsToCompile) || tagsToCompile.length !== 2) throw new Error("Invalid tags: " + tagsToCompile);
-		openingTagRe = new RegExp(escapeRegExp(tagsToCompile[0]) + "\\s*");
-		closingTagRe = new RegExp("\\s*" + escapeRegExp(tagsToCompile[1]));
-		closingCurlyRe = new RegExp("\\s*" + escapeRegExp("}" + tagsToCompile[1]));
-	}
-	compileTags(tags || mustache.tags);
-	var scanner = new Scanner(template);
-	var start, type, value, chr, token, openSection;
-	while (!scanner.eos()) {
-		start = scanner.pos;
-		value = scanner.scanUntil(openingTagRe);
-		if (value) for (var i = 0, valueLength = value.length; i < valueLength; ++i) {
-			chr = value.charAt(i);
-			if (isWhitespace(chr)) {
-				spaces.push(tokens.length);
-				indentation += chr;
-			} else {
-				nonSpace = true;
-				lineHasNonSpace = true;
-				indentation += " ";
-			}
-			tokens.push([
-				"text",
-				chr,
-				start,
-				start + 1
-			]);
-			start += 1;
-			if (chr === "\n") {
-				stripSpace();
-				indentation = "";
-				tagIndex = 0;
-				lineHasNonSpace = false;
-			}
-		}
-		if (!scanner.scan(openingTagRe)) break;
-		hasTag = true;
-		type = scanner.scan(tagRe) || "name";
-		scanner.scan(whiteRe);
-		if (type === "=") {
-			value = scanner.scanUntil(equalsRe);
-			scanner.scan(equalsRe);
-			scanner.scanUntil(closingTagRe);
-		} else if (type === "{") {
-			value = scanner.scanUntil(closingCurlyRe);
-			scanner.scan(curlyRe);
-			scanner.scanUntil(closingTagRe);
-			type = "&";
-		} else value = scanner.scanUntil(closingTagRe);
-		if (!scanner.scan(closingTagRe)) throw new Error("Unclosed tag at " + scanner.pos);
-		if (type == ">") token = [
-			type,
-			value,
-			start,
-			scanner.pos,
-			indentation,
-			tagIndex,
-			lineHasNonSpace
-		];
-		else token = [
-			type,
-			value,
-			start,
-			scanner.pos
-		];
-		tagIndex++;
-		tokens.push(token);
-		if (type === "#" || type === "^") sections.push(token);
-		else if (type === "/") {
-			openSection = sections.pop();
-			if (!openSection) throw new Error("Unopened section \"" + value + "\" at " + start);
-			if (openSection[1] !== value) throw new Error("Unclosed section \"" + openSection[1] + "\" at " + start);
-		} else if (type === "name" || type === "{" || type === "&") nonSpace = true;
-		else if (type === "=") compileTags(value);
-	}
-	stripSpace();
-	openSection = sections.pop();
-	if (openSection) throw new Error("Unclosed section \"" + openSection[1] + "\" at " + scanner.pos);
-	return nestTokens(squashTokens(tokens));
-}
-/**
-* Combines the values of consecutive text tokens in the given `tokens` array
-* to a single token.
-*/
-function squashTokens(tokens) {
-	var squashedTokens = [];
-	var token, lastToken;
-	for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
-		token = tokens[i];
-		if (token) if (token[0] === "text" && lastToken && lastToken[0] === "text") {
-			lastToken[1] += token[1];
-			lastToken[3] = token[3];
-		} else {
-			squashedTokens.push(token);
-			lastToken = token;
-		}
-	}
-	return squashedTokens;
-}
-/**
-* Forms the given array of `tokens` into a nested tree structure where
-* tokens that represent a section have two additional items: 1) an array of
-* all tokens that appear in that section and 2) the index in the original
-* template that represents the end of that section.
-*/
-function nestTokens(tokens) {
-	var nestedTokens = [];
-	var collector = nestedTokens;
-	var sections = [];
-	var token, section;
-	for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
-		token = tokens[i];
-		switch (token[0]) {
-			case "#":
-			case "^":
-				collector.push(token);
-				sections.push(token);
-				collector = token[4] = [];
-				break;
-			case "/":
-				section = sections.pop();
-				section[5] = token[2];
-				collector = sections.length > 0 ? sections[sections.length - 1][4] : nestedTokens;
-				break;
-			default: collector.push(token);
-		}
-	}
-	return nestedTokens;
-}
-/**
-* A simple string scanner that is used by the template parser to find
-* tokens in template strings.
-*/
-function Scanner(string) {
-	this.string = string;
-	this.tail = string;
-	this.pos = 0;
-}
-/**
-* Returns `true` if the tail is empty (end of string).
-*/
-Scanner.prototype.eos = function eos() {
-	return this.tail === "";
-};
-/**
-* Tries to match the given regular expression at the current position.
-* Returns the matched text if it can match, the empty string otherwise.
-*/
-Scanner.prototype.scan = function scan(re) {
-	var match = this.tail.match(re);
-	if (!match || match.index !== 0) return "";
-	var string = match[0];
-	this.tail = this.tail.substring(string.length);
-	this.pos += string.length;
-	return string;
-};
-/**
-* Skips all text until the given regular expression can be matched. Returns
-* the skipped string, which is the entire tail if no match can be made.
-*/
-Scanner.prototype.scanUntil = function scanUntil(re) {
-	var index = this.tail.search(re), match;
-	switch (index) {
-		case -1:
-			match = this.tail;
-			this.tail = "";
-			break;
-		case 0:
-			match = "";
-			break;
-		default:
-			match = this.tail.substring(0, index);
-			this.tail = this.tail.substring(index);
-	}
-	this.pos += match.length;
-	return match;
-};
-/**
-* Represents a rendering context by wrapping a view object and
-* maintaining a reference to the parent context.
-*/
-function Context(view, parentContext) {
-	this.view = view;
-	this.cache = { ".": this.view };
-	this.parent = parentContext;
-}
-/**
-* Creates a new context using the given view with this context
-* as the parent.
-*/
-Context.prototype.push = function push(view) {
-	return new Context(view, this);
-};
-/**
-* Returns the value of the given name in this context, traversing
-* up the context hierarchy if the value is absent in this context's view.
-*/
-Context.prototype.lookup = function lookup(name) {
-	var cache = this.cache;
-	var value;
-	if (cache.hasOwnProperty(name)) value = cache[name];
-	else {
-		var context = this, intermediateValue, names, index, lookupHit = false;
-		while (context) {
-			if (name.indexOf(".") > 0) {
-				intermediateValue = context.view;
-				names = name.split(".");
-				index = 0;
-				/**
-				* Using the dot notion path in `name`, we descend through the
-				* nested objects.
-				*
-				* To be certain that the lookup has been successful, we have to
-				* check if the last object in the path actually has the property
-				* we are looking for. We store the result in `lookupHit`.
-				*
-				* This is specially necessary for when the value has been set to
-				* `undefined` and we want to avoid looking up parent contexts.
-				*
-				* In the case where dot notation is used, we consider the lookup
-				* to be successful even if the last "object" in the path is
-				* not actually an object but a primitive (e.g., a string, or an
-				* integer), because it is sometimes useful to access a property
-				* of an autoboxed primitive, such as the length of a string.
-				**/
-				while (intermediateValue != null && index < names.length) {
-					if (index === names.length - 1) lookupHit = hasProperty(intermediateValue, names[index]) || primitiveHasOwnProperty(intermediateValue, names[index]);
-					intermediateValue = intermediateValue[names[index++]];
-				}
-			} else {
-				intermediateValue = context.view[name];
-				/**
-				* Only checking against `hasProperty`, which always returns `false` if
-				* `context.view` is not an object. Deliberately omitting the check
-				* against `primitiveHasOwnProperty` if dot notation is not used.
-				*
-				* Consider this example:
-				* ```
-				* Mustache.render("The length of a football field is {{#length}}{{length}}{{/length}}.", {length: "100 yards"})
-				* ```
-				*
-				* If we were to check also against `primitiveHasOwnProperty`, as we do
-				* in the dot notation case, then render call would return:
-				*
-				* "The length of a football field is 9."
-				*
-				* rather than the expected:
-				*
-				* "The length of a football field is 100 yards."
-				**/
-				lookupHit = hasProperty(context.view, name);
-			}
-			if (lookupHit) {
-				value = intermediateValue;
-				break;
-			}
-			context = context.parent;
-		}
-		cache[name] = value;
-	}
-	if (isFunction(value)) value = value.call(this.view);
-	return value;
-};
-/**
-* A Writer knows how to take a stream of tokens and render them to a
-* string, given a context. It also maintains a cache of templates to
-* avoid the need to parse the same template twice.
-*/
-function Writer() {
-	this.templateCache = {
-		_cache: {},
-		set: function set(key, value) {
-			this._cache[key] = value;
-		},
-		get: function get(key) {
-			return this._cache[key];
-		},
-		clear: function clear() {
-			this._cache = {};
-		}
-	};
-}
-/**
-* Clears all cached templates in this writer.
-*/
-Writer.prototype.clearCache = function clearCache() {
-	if (typeof this.templateCache !== "undefined") this.templateCache.clear();
-};
-/**
-* Parses and caches the given `template` according to the given `tags` or
-* `mustache.tags` if `tags` is omitted,  and returns the array of tokens
-* that is generated from the parse.
-*/
-Writer.prototype.parse = function parse(template, tags) {
-	var cache = this.templateCache;
-	var cacheKey = template + ":" + (tags || mustache.tags).join(":");
-	var isCacheEnabled = typeof cache !== "undefined";
-	var tokens = isCacheEnabled ? cache.get(cacheKey) : void 0;
-	if (tokens == void 0) {
-		tokens = parseTemplate$1(template, tags);
-		isCacheEnabled && cache.set(cacheKey, tokens);
-	}
-	return tokens;
-};
-/**
-* High-level method that is used to render the given `template` with
-* the given `view`.
-*
-* The optional `partials` argument may be an object that contains the
-* names and templates of partials that are used in the template. It may
-* also be a function that is used to load partial templates on the fly
-* that takes a single argument: the name of the partial.
-*
-* If the optional `config` argument is given here, then it should be an
-* object with a `tags` attribute or an `escape` attribute or both.
-* If an array is passed, then it will be interpreted the same way as
-* a `tags` attribute on a `config` object.
-*
-* The `tags` attribute of a `config` object must be an array with two
-* string values: the opening and closing tags used in the template (e.g.
-* [ "<%", "%>" ]). The default is to mustache.tags.
-*
-* The `escape` attribute of a `config` object must be a function which
-* accepts a string as input and outputs a safely escaped string.
-* If an `escape` function is not provided, then an HTML-safe string
-* escaping function is used as the default.
-*/
-Writer.prototype.render = function render(template, view, partials, config) {
-	var tags = this.getConfigTags(config);
-	var tokens = this.parse(template, tags);
-	var context = view instanceof Context ? view : new Context(view, void 0);
-	return this.renderTokens(tokens, context, partials, template, config);
-};
-/**
-* Low-level method that renders the given array of `tokens` using
-* the given `context` and `partials`.
-*
-* Note: The `originalTemplate` is only ever used to extract the portion
-* of the original template that was contained in a higher-order section.
-* If the template doesn't use higher-order sections, this argument may
-* be omitted.
-*/
-Writer.prototype.renderTokens = function renderTokens(tokens, context, partials, originalTemplate, config) {
-	var buffer = "";
-	var token, symbol, value;
-	for (var i = 0, numTokens = tokens.length; i < numTokens; ++i) {
-		value = void 0;
-		token = tokens[i];
-		symbol = token[0];
-		if (symbol === "#") value = this.renderSection(token, context, partials, originalTemplate, config);
-		else if (symbol === "^") value = this.renderInverted(token, context, partials, originalTemplate, config);
-		else if (symbol === ">") value = this.renderPartial(token, context, partials, config);
-		else if (symbol === "&") value = this.unescapedValue(token, context);
-		else if (symbol === "name") value = this.escapedValue(token, context, config);
-		else if (symbol === "text") value = this.rawValue(token);
-		if (value !== void 0) buffer += value;
-	}
-	return buffer;
-};
-Writer.prototype.renderSection = function renderSection(token, context, partials, originalTemplate, config) {
-	var self = this;
-	var buffer = "";
-	var value = context.lookup(token[1]);
-	function subRender(template) {
-		return self.render(template, context, partials, config);
-	}
-	if (!value) return;
-	if (isArray(value)) for (var j = 0, valueLength = value.length; j < valueLength; ++j) buffer += this.renderTokens(token[4], context.push(value[j]), partials, originalTemplate, config);
-	else if (typeof value === "object" || typeof value === "string" || typeof value === "number") buffer += this.renderTokens(token[4], context.push(value), partials, originalTemplate, config);
-	else if (isFunction(value)) {
-		if (typeof originalTemplate !== "string") throw new Error("Cannot use higher-order sections without the original template");
-		value = value.call(context.view, originalTemplate.slice(token[3], token[5]), subRender);
-		if (value != null) buffer += value;
-	} else buffer += this.renderTokens(token[4], context, partials, originalTemplate, config);
-	return buffer;
-};
-Writer.prototype.renderInverted = function renderInverted(token, context, partials, originalTemplate, config) {
-	var value = context.lookup(token[1]);
-	if (!value || isArray(value) && value.length === 0) return this.renderTokens(token[4], context, partials, originalTemplate, config);
-};
-Writer.prototype.indentPartial = function indentPartial(partial, indentation, lineHasNonSpace) {
-	var filteredIndentation = indentation.replace(/[^ \t]/g, "");
-	var partialByNl = partial.split("\n");
-	for (var i = 0; i < partialByNl.length; i++) if (partialByNl[i].length && (i > 0 || !lineHasNonSpace)) partialByNl[i] = filteredIndentation + partialByNl[i];
-	return partialByNl.join("\n");
-};
-Writer.prototype.renderPartial = function renderPartial(token, context, partials, config) {
-	if (!partials) return;
-	var tags = this.getConfigTags(config);
-	var value = isFunction(partials) ? partials(token[1]) : partials[token[1]];
-	if (value != null) {
-		var lineHasNonSpace = token[6];
-		var tagIndex = token[5];
-		var indentation = token[4];
-		var indentedValue = value;
-		if (tagIndex == 0 && indentation) indentedValue = this.indentPartial(value, indentation, lineHasNonSpace);
-		var tokens = this.parse(indentedValue, tags);
-		return this.renderTokens(tokens, context, partials, indentedValue, config);
-	}
-};
-Writer.prototype.unescapedValue = function unescapedValue(token, context) {
-	var value = context.lookup(token[1]);
-	if (value != null) return value;
-};
-Writer.prototype.escapedValue = function escapedValue(token, context, config) {
-	var escape = this.getConfigEscape(config) || mustache.escape;
-	var value = context.lookup(token[1]);
-	if (value != null) return typeof value === "number" && escape === mustache.escape ? String(value) : escape(value);
-};
-Writer.prototype.rawValue = function rawValue(token) {
-	return token[1];
-};
-Writer.prototype.getConfigTags = function getConfigTags(config) {
-	if (isArray(config)) return config;
-	else if (config && typeof config === "object") return config.tags;
-	else return;
-};
-Writer.prototype.getConfigEscape = function getConfigEscape(config) {
-	if (config && typeof config === "object" && !isArray(config)) return config.escape;
-	else return;
-};
-var mustache = {
-	name: "mustache.js",
-	version: "4.2.0",
-	tags: ["{{", "}}"],
-	clearCache: void 0,
-	escape: void 0,
-	parse: void 0,
-	render: void 0,
-	Scanner: void 0,
-	Context: void 0,
-	Writer: void 0,
-	/**
-	* Allows a user to override the default caching strategy, by providing an
-	* object with set, get and clear methods. This can also be used to disable
-	* the cache by setting it to the literal `undefined`.
-	*/
-	set templateCache(cache) {
-		defaultWriter.templateCache = cache;
-	},
-	/**
-	* Gets the default or overridden caching object from the default writer.
-	*/
-	get templateCache() {
-		return defaultWriter.templateCache;
-	}
-};
-var defaultWriter = new Writer();
-/**
-* Clears all cached templates in the default writer.
-*/
-mustache.clearCache = function clearCache() {
-	return defaultWriter.clearCache();
-};
-/**
-* Parses and caches the given template in the default writer and returns the
-* array of tokens it contains. Doing this ahead of time avoids the need to
-* parse templates on the fly as they are rendered.
-*/
-mustache.parse = function parse(template, tags) {
-	return defaultWriter.parse(template, tags);
-};
-/**
-* Renders the `template` with the given `view`, `partials`, and `config`
-* using the default writer.
-*/
-mustache.render = function render(template, view, partials, config) {
-	if (typeof template !== "string") throw new TypeError("Invalid template! Template should be a \"string\" but \"" + typeStr(template) + "\" was given as the first argument for mustache#render(template, view, partials)");
-	return defaultWriter.render(template, view, partials, config);
-};
-mustache.escape = escapeHtml;
-mustache.Scanner = Scanner;
-mustache.Context = Context;
-mustache.Writer = Writer;
-//#endregion
-//#region node_modules/@langchain/core/dist/prompts/template.js
-function configureMustache() {
-	mustache.escape = (text) => text;
-}
-var parseFString = (template) => {
-	const chars = template.split("");
-	const nodes = [];
-	const nextBracket = (bracket, start) => {
-		for (let i = start; i < chars.length; i += 1) if (bracket.includes(chars[i])) return i;
-		return -1;
-	};
-	let i = 0;
-	while (i < chars.length) if (chars[i] === "{" && i + 1 < chars.length && chars[i + 1] === "{") {
-		nodes.push({
-			type: "literal",
-			text: "{"
-		});
-		i += 2;
-	} else if (chars[i] === "}" && i + 1 < chars.length && chars[i + 1] === "}") {
-		nodes.push({
-			type: "literal",
-			text: "}"
-		});
-		i += 2;
-	} else if (chars[i] === "{") {
-		const j = nextBracket("}", i);
-		if (j < 0) throw new Error("Unclosed '{' in template.");
-		nodes.push({
-			type: "variable",
-			name: chars.slice(i + 1, j).join("")
-		});
-		i = j + 1;
-	} else if (chars[i] === "}") throw new Error("Single '}' in template.");
-	else {
-		const next = nextBracket("{}", i);
-		const text = (next < 0 ? chars.slice(i) : chars.slice(i, next)).join("");
-		nodes.push({
-			type: "literal",
-			text
-		});
-		i = next < 0 ? chars.length : next;
-	}
-	return nodes;
-};
-/**
-* Convert the result of mustache.parse into an array of ParsedTemplateNode,
-* to make it compatible with other LangChain string parsing template formats.
-*
-* @param {mustache.TemplateSpans} template The result of parsing a mustache template with the mustache.js library.
-* @param {string[]} context Array of section variable names for nested context
-* @returns {ParsedTemplateNode[]}
-*/
-var mustacheTemplateToNodes = (template, context = []) => {
-	const nodes = [];
-	for (const temp of template) if (temp[0] === "name") {
-		const name = temp[1].includes(".") ? temp[1].split(".")[0] : temp[1];
-		nodes.push({
-			type: "variable",
-			name
-		});
-	} else if ([
-		"#",
-		"&",
-		"^",
-		">"
-	].includes(temp[0])) {
-		nodes.push({
-			type: "variable",
-			name: temp[1]
-		});
-		if (temp[0] === "#" && temp.length > 4 && Array.isArray(temp[4])) {
-			const newContext = [...context, temp[1]];
-			const nestedNodes = mustacheTemplateToNodes(temp[4], newContext);
-			nodes.push(...nestedNodes);
-		}
-	} else nodes.push({
-		type: "literal",
-		text: temp[1]
-	});
-	return nodes;
-};
-var parseMustache = (template) => {
-	configureMustache();
-	return mustacheTemplateToNodes(mustache.parse(template));
-};
-var interpolateFString = (template, values) => {
-	return parseFString(template).reduce((res, node) => {
-		if (node.type === "variable") {
-			if (node.name in values) return res + (typeof values[node.name] === "string" ? values[node.name] : JSON.stringify(values[node.name]));
-			throw new Error(`(f-string) Missing value for input ${node.name}`);
-		}
-		return res + node.text;
-	}, "");
-};
-var interpolateMustache = (template, values) => {
-	configureMustache();
-	return mustache.render(template, values);
-};
-var DEFAULT_FORMATTER_MAPPING = {
-	"f-string": interpolateFString,
-	mustache: interpolateMustache
-};
-var DEFAULT_PARSER_MAPPING = {
-	"f-string": parseFString,
-	mustache: parseMustache
-};
-var renderTemplate = (template, templateFormat, inputValues) => {
-	try {
-		return DEFAULT_FORMATTER_MAPPING[templateFormat](template, inputValues);
-	} catch (e) {
-		throw addLangChainErrorFields(e, "INVALID_PROMPT_INPUT");
-	}
-};
-var parseTemplate = (template, templateFormat) => DEFAULT_PARSER_MAPPING[templateFormat](template);
-var checkValidTemplate = (template, templateFormat, inputVariables) => {
-	if (!(templateFormat in DEFAULT_FORMATTER_MAPPING)) throw new Error(`Invalid template format. Got \`${templateFormat}\`;
-                         should be one of ${Object.keys(DEFAULT_FORMATTER_MAPPING)}`);
-	try {
-		const dummyInputs = Object.fromEntries(inputVariables.map((v) => [v, "foo"]));
-		if (Array.isArray(template)) template.forEach((message) => {
-			if (message.type === "text" && "text" in message && typeof message.text === "string") renderTemplate(message.text, templateFormat, dummyInputs);
-			else if (message.type === "image_url") {
-				if (typeof message.image_url === "string") renderTemplate(message.image_url, templateFormat, dummyInputs);
-				else if (typeof message.image_url === "object" && message.image_url !== null && "url" in message.image_url && typeof message.image_url.url === "string") {
-					const imageUrl = message.image_url.url;
-					renderTemplate(imageUrl, templateFormat, dummyInputs);
-				}
-			} else throw new Error(`Invalid message template received. ${JSON.stringify(message, null, 2)}`);
-		});
-		else renderTemplate(template, templateFormat, dummyInputs);
-	} catch (e) {
-		throw new Error(`Invalid prompt schema: ${e.message}`);
-	}
-};
-//#endregion
-//#region node_modules/@langchain/core/dist/prompts/prompt.js
-/**
-* Schema to represent a basic prompt for an LLM.
-* @augments BasePromptTemplate
-* @augments PromptTemplateInput
-*
-* @example
-* ```ts
-* import { PromptTemplate } from "langchain/prompts";
-*
-* const prompt = new PromptTemplate({
-*   inputVariables: ["foo"],
-*   template: "Say {foo}",
-* });
-* ```
-*/
-var PromptTemplate = class PromptTemplate extends BaseStringPromptTemplate {
-	static lc_name() {
-		return "PromptTemplate";
-	}
-	template;
-	templateFormat = "f-string";
-	validateTemplate = true;
-	/**
-	* Additional fields which should be included inside
-	* the message content array if using a complex message
-	* content.
-	*/
-	additionalContentFields;
-	constructor(input) {
-		super(input);
-		if (input.templateFormat === "mustache" && input.validateTemplate === void 0) this.validateTemplate = false;
-		Object.assign(this, input);
-		if (this.validateTemplate) {
-			if (this.templateFormat === "mustache") throw new Error("Mustache templates cannot be validated.");
-			let totalInputVariables = this.inputVariables;
-			if (this.partialVariables) totalInputVariables = totalInputVariables.concat(Object.keys(this.partialVariables));
-			checkValidTemplate(this.template, this.templateFormat, totalInputVariables);
-		}
-	}
-	_getPromptType() {
-		return "prompt";
-	}
-	/**
-	* Formats the prompt template with the provided values.
-	* @param values The values to be used to format the prompt template.
-	* @returns A promise that resolves to a string which is the formatted prompt.
-	*/
-	async format(values) {
-		const allValues = await this.mergePartialAndUserVariables(values);
-		return renderTemplate(this.template, this.templateFormat, allValues);
-	}
-	/**
-	* Take examples in list format with prefix and suffix to create a prompt.
-	*
-	* Intended to be used as a way to dynamically create a prompt from examples.
-	*
-	* @param examples - List of examples to use in the prompt.
-	* @param suffix - String to go after the list of examples. Should generally set up the user's input.
-	* @param inputVariables - A list of variable names the final prompt template will expect
-	* @param exampleSeparator - The separator to use in between examples
-	* @param prefix - String that should go before any examples. Generally includes examples.
-	*
-	* @returns The final prompt template generated.
-	*/
-	static fromExamples(examples, suffix, inputVariables, exampleSeparator = "\n\n", prefix = "") {
-		return new PromptTemplate({
-			inputVariables,
-			template: [
-				prefix,
-				...examples,
-				suffix
-			].join(exampleSeparator)
-		});
-	}
-	static fromTemplate(template, options) {
-		const { templateFormat = "f-string", ...rest } = options ?? {};
-		const names = /* @__PURE__ */ new Set();
-		parseTemplate(template, templateFormat).forEach((node) => {
-			if (node.type === "variable") names.add(node.name);
-		});
-		return new PromptTemplate({
-			inputVariables: [...names],
-			templateFormat,
-			template,
-			...rest
-		});
-	}
-	/**
-	* Partially applies values to the prompt template.
-	* @param values The values to be partially applied to the prompt template.
-	* @returns A new instance of PromptTemplate with the partially applied values.
-	*/
-	async partial(values) {
-		const newInputVariables = this.inputVariables.filter((iv) => !(iv in values));
-		const newPartialVariables = {
-			...this.partialVariables ?? {},
-			...values
-		};
-		return new PromptTemplate({
-			...this,
-			inputVariables: newInputVariables,
-			partialVariables: newPartialVariables
-		});
-	}
-	serialize() {
-		if (this.outputParser !== void 0) throw new Error("Cannot serialize a prompt template with an output parser");
-		return {
-			_type: this._getPromptType(),
-			input_variables: this.inputVariables,
-			template: this.template,
-			template_format: this.templateFormat
-		};
-	}
-	static async deserialize(data) {
-		if (!data.template) throw new Error("Prompt template must have a template");
-		return new PromptTemplate({
-			inputVariables: data.input_variables,
-			template: data.template,
-			templateFormat: data.template_format
-		});
-	}
-};
-//#endregion
-//#region node_modules/@langchain/core/dist/prompts/image.js
-/**
-* An image prompt template for a multimodal model.
-*/
-var ImagePromptTemplate = class ImagePromptTemplate extends BasePromptTemplate {
-	static lc_name() {
-		return "ImagePromptTemplate";
-	}
-	lc_namespace = [
-		"langchain_core",
-		"prompts",
-		"image"
-	];
-	template;
-	templateFormat = "f-string";
-	validateTemplate = true;
-	/**
-	* Additional fields which should be included inside
-	* the message content array if using a complex message
-	* content.
-	*/
-	additionalContentFields;
-	constructor(input) {
-		super(input);
-		this.template = input.template;
-		this.templateFormat = input.templateFormat ?? this.templateFormat;
-		this.validateTemplate = input.validateTemplate ?? this.validateTemplate;
-		this.additionalContentFields = input.additionalContentFields;
-		if (this.validateTemplate) {
-			let totalInputVariables = this.inputVariables;
-			if (this.partialVariables) totalInputVariables = totalInputVariables.concat(Object.keys(this.partialVariables));
-			checkValidTemplate([{
-				type: "image_url",
-				image_url: this.template
-			}], this.templateFormat, totalInputVariables);
-		}
-	}
-	_getPromptType() {
-		return "prompt";
-	}
-	/**
-	* Partially applies values to the prompt template.
-	* @param values The values to be partially applied to the prompt template.
-	* @returns A new instance of ImagePromptTemplate with the partially applied values.
-	*/
-	async partial(values) {
-		const newInputVariables = this.inputVariables.filter((iv) => !(iv in values));
-		const newPartialVariables = {
-			...this.partialVariables ?? {},
-			...values
-		};
-		return new ImagePromptTemplate({
-			...this,
-			inputVariables: newInputVariables,
-			partialVariables: newPartialVariables
-		});
-	}
-	/**
-	* Formats the prompt template with the provided values.
-	* @param values The values to be used to format the prompt template.
-	* @returns A promise that resolves to a string which is the formatted prompt.
-	*/
-	async format(values) {
-		const formatted = {};
-		for (const [key, value] of Object.entries(this.template)) if (typeof value === "string") formatted[key] = renderTemplate(value, this.templateFormat, values);
-		else formatted[key] = value;
-		const url = values.url || formatted.url;
-		const detail = values.detail || formatted.detail;
-		if (!url) throw new Error("Must provide either an image URL.");
-		if (typeof url !== "string") throw new Error("url must be a string.");
-		const output = { url };
-		if (detail) output.detail = detail;
-		return output;
-	}
-	/**
-	* Formats the prompt given the input values and returns a formatted
-	* prompt value.
-	* @param values The input values to format the prompt.
-	* @returns A Promise that resolves to a formatted prompt value.
-	*/
-	async formatPromptValue(values) {
-		return new ImagePromptValue(await this.format(values));
-	}
-};
-//#endregion
-//#region node_modules/@langchain/core/dist/prompts/dict.js
-var DictPromptTemplate = class extends Runnable {
-	lc_namespace = [
-		"langchain_core",
-		"prompts",
-		"dict"
-	];
-	lc_serializable = true;
-	template;
-	templateFormat;
-	inputVariables;
-	static lc_name() {
-		return "DictPromptTemplate";
-	}
-	constructor(fields) {
-		const templateFormat = fields.templateFormat ?? "f-string";
-		const inputVariables = _getInputVariables(fields.template, templateFormat);
-		super({
-			inputVariables,
-			...fields
-		});
-		this.template = fields.template;
-		this.templateFormat = templateFormat;
-		this.inputVariables = inputVariables;
-	}
-	async format(values) {
-		return _insertInputVariables(this.template, values, this.templateFormat);
-	}
-	async invoke(values) {
-		return await this._callWithConfig(this.format.bind(this), values, { runType: "prompt" });
-	}
-};
-function _getInputVariables(template, templateFormat) {
-	const inputVariables = [];
-	for (const v of Object.values(template)) if (typeof v === "string") parseTemplate(v, templateFormat).forEach((t) => {
-		if (t.type === "variable") inputVariables.push(t.name);
-	});
-	else if (Array.isArray(v)) {
-		for (const x of v) if (typeof x === "string") parseTemplate(x, templateFormat).forEach((t) => {
-			if (t.type === "variable") inputVariables.push(t.name);
-		});
-		else if (typeof x === "object") inputVariables.push(..._getInputVariables(x, templateFormat));
-	} else if (typeof v === "object" && v !== null) inputVariables.push(..._getInputVariables(v, templateFormat));
-	return Array.from(new Set(inputVariables));
-}
-function _insertInputVariables(template, inputs, templateFormat) {
-	const formatted = {};
-	for (const [k, v] of Object.entries(template)) if (typeof v === "string") formatted[k] = renderTemplate(v, templateFormat, inputs);
-	else if (Array.isArray(v)) {
-		const formattedV = [];
-		for (const x of v) if (typeof x === "string") formattedV.push(renderTemplate(x, templateFormat, inputs));
-		else if (typeof x === "object") formattedV.push(_insertInputVariables(x, inputs, templateFormat));
-		formatted[k] = formattedV;
-	} else if (typeof v === "object" && v !== null) formatted[k] = _insertInputVariables(v, inputs, templateFormat);
-	else formatted[k] = v;
-	return formatted;
-}
-//#endregion
-//#region node_modules/@langchain/core/dist/prompts/chat.js
-/**
-* Abstract class that serves as a base for creating message prompt
-* templates. It defines how to format messages for different roles in a
-* conversation.
-*/
-var BaseMessagePromptTemplate = class extends Runnable {
-	lc_namespace = [
-		"langchain_core",
-		"prompts",
-		"chat"
-	];
-	lc_serializable = true;
-	/**
-	* Calls the formatMessages method with the provided input and options.
-	* @param input Input for the formatMessages method
-	* @param options Optional BaseCallbackConfig
-	* @returns Formatted output messages
-	*/
-	async invoke(input, options) {
-		return this._callWithConfig((input) => this.formatMessages(input), input, {
-			...options,
-			runType: "prompt"
-		});
-	}
-};
-/**
-* Class that represents a placeholder for messages in a chat prompt. It
-* extends the BaseMessagePromptTemplate.
-*/
-var MessagesPlaceholder = class extends BaseMessagePromptTemplate {
-	static lc_name() {
-		return "MessagesPlaceholder";
-	}
-	variableName;
-	optional;
-	constructor(fields) {
-		if (typeof fields === "string") fields = { variableName: fields };
-		super(fields);
-		this.variableName = fields.variableName;
-		this.optional = fields.optional ?? false;
-	}
-	get inputVariables() {
-		return [this.variableName];
-	}
-	async formatMessages(values) {
-		const input = values[this.variableName];
-		if (this.optional && !input) return [];
-		else if (!input) {
-			const error = /* @__PURE__ */ new Error(`Field "${this.variableName}" in prompt uses a MessagesPlaceholder, which expects an array of BaseMessages as an input value. Received: undefined`);
-			error.name = "InputFormatError";
-			throw error;
-		}
-		let formattedMessages;
-		try {
-			if (Array.isArray(input)) formattedMessages = input.map(coerceMessageLikeToMessage);
-			else formattedMessages = [coerceMessageLikeToMessage(input)];
-		} catch (e) {
-			const readableInput = typeof input === "string" ? input : JSON.stringify(input, null, 2);
-			const error = new Error([
-				`Field "${this.variableName}" in prompt uses a MessagesPlaceholder, which expects an array of BaseMessages or coerceable values as input.`,
-				`Received value: ${readableInput}`,
-				`Additional message: ${e.message}`
-			].join("\n\n"));
-			error.name = "InputFormatError";
-			error.lc_error_code = e.lc_error_code;
-			throw error;
-		}
-		return formattedMessages;
-	}
-};
-/**
-* Abstract class that serves as a base for creating message string prompt
-* templates. It extends the BaseMessagePromptTemplate.
-*/
-var BaseMessageStringPromptTemplate = class extends BaseMessagePromptTemplate {
-	prompt;
-	constructor(fields) {
-		if (!("prompt" in fields)) fields = { prompt: fields };
-		super(fields);
-		this.prompt = fields.prompt;
-	}
-	get inputVariables() {
-		return this.prompt.inputVariables;
-	}
-	async formatMessages(values) {
-		return [await this.format(values)];
-	}
-};
-/**
-* Abstract class that serves as a base for creating chat prompt
-* templates. It extends the BasePromptTemplate.
-*/
-var BaseChatPromptTemplate = class extends BasePromptTemplate {
-	constructor(input) {
-		super(input);
-	}
-	async format(values) {
-		return (await this.formatPromptValue(values)).toString();
-	}
-	async formatPromptValue(values) {
-		return new ChatPromptValue(await this.formatMessages(values));
-	}
-};
-/**
-* Class that represents a chat message prompt template. It extends the
-* BaseMessageStringPromptTemplate.
-*/
-var ChatMessagePromptTemplate = class extends BaseMessageStringPromptTemplate {
-	static lc_name() {
-		return "ChatMessagePromptTemplate";
-	}
-	role;
-	constructor(fields, role) {
-		if (!("prompt" in fields)) fields = {
-			prompt: fields,
-			role
-		};
-		super(fields);
-		this.role = fields.role;
-	}
-	async format(values) {
-		return new ChatMessage(await this.prompt.format(values), this.role);
-	}
-	static fromTemplate(template, role, options) {
-		return new this(PromptTemplate.fromTemplate(template, { templateFormat: options?.templateFormat }), role);
-	}
-};
-function isTextTemplateParam(param) {
-	if (param === null || typeof param !== "object" || Array.isArray(param)) return false;
-	return Object.keys(param).length === 1 && "text" in param && typeof param.text === "string";
-}
-function isImageTemplateParam(param) {
-	if (param === null || typeof param !== "object" || Array.isArray(param)) return false;
-	return "image_url" in param && (typeof param.image_url === "string" || typeof param.image_url === "object" && param.image_url !== null && "url" in param.image_url && typeof param.image_url.url === "string");
-}
-var _StringImageMessagePromptTemplate = class extends BaseMessagePromptTemplate {
-	lc_namespace = [
-		"langchain_core",
-		"prompts",
-		"chat"
-	];
-	lc_serializable = true;
-	inputVariables = [];
-	additionalOptions = {};
-	prompt;
-	messageClass;
-	static _messageClass() {
-		throw new Error("Can not invoke _messageClass from inside _StringImageMessagePromptTemplate");
-	}
-	chatMessageClass;
-	constructor(fields, additionalOptions) {
-		if (!("prompt" in fields)) fields = { prompt: fields };
-		super(fields);
-		this.prompt = fields.prompt;
-		if (Array.isArray(this.prompt)) {
-			let inputVariables = [];
-			this.prompt.forEach((prompt) => {
-				if ("inputVariables" in prompt) inputVariables = inputVariables.concat(prompt.inputVariables);
-			});
-			this.inputVariables = inputVariables;
-		} else this.inputVariables = this.prompt.inputVariables;
-		this.additionalOptions = additionalOptions ?? this.additionalOptions;
-	}
-	createMessage(content) {
-		const constructor = this.constructor;
-		if (constructor._messageClass()) return new (constructor._messageClass())({ content });
-		else if (constructor.chatMessageClass) {
-			const MsgClass = constructor.chatMessageClass();
-			return new MsgClass({
-				content,
-				role: this.getRoleFromMessageClass(MsgClass.lc_name())
-			});
-		} else throw new Error("No message class defined");
-	}
-	getRoleFromMessageClass(name) {
-		switch (name) {
-			case "HumanMessage": return "human";
-			case "AIMessage": return "ai";
-			case "SystemMessage": return "system";
-			case "ChatMessage": return "chat";
-			default: throw new Error("Invalid message class name");
-		}
-	}
-	static fromTemplate(template, additionalOptions) {
-		if (typeof template === "string") return new this(PromptTemplate.fromTemplate(template, additionalOptions));
-		const prompt = [];
-		for (const item of template) if (typeof item === "string") prompt.push(PromptTemplate.fromTemplate(item, additionalOptions));
-		else if (item === null) {} else if (isTextTemplateParam(item)) {
-			let text = "";
-			if (typeof item.text === "string") text = item.text ?? "";
-			const options = {
-				...additionalOptions,
-				additionalContentFields: item
-			};
-			prompt.push(PromptTemplate.fromTemplate(text, options));
-		} else if (isImageTemplateParam(item)) {
-			let imgTemplate = item.image_url ?? "";
-			let imgTemplateObject;
-			let inputVariables = [];
-			if (typeof imgTemplate === "string") {
-				let parsedTemplate;
-				if (additionalOptions?.templateFormat === "mustache") parsedTemplate = parseMustache(imgTemplate);
-				else parsedTemplate = parseFString(imgTemplate);
-				const variables = parsedTemplate.flatMap((item) => item.type === "variable" ? [item.name] : []);
-				if ((variables?.length ?? 0) > 0) {
-					if (variables.length > 1) throw new Error(`Only one format variable allowed per image template.\nGot: ${variables}\nFrom: ${imgTemplate}`);
-					inputVariables = [variables[0]];
-				} else inputVariables = [];
-				imgTemplate = { url: imgTemplate };
-				imgTemplateObject = new ImagePromptTemplate({
-					template: imgTemplate,
-					inputVariables,
-					templateFormat: additionalOptions?.templateFormat,
-					additionalContentFields: item
-				});
-			} else if (typeof imgTemplate === "object") {
-				if ("url" in imgTemplate) {
-					let parsedTemplate;
-					if (additionalOptions?.templateFormat === "mustache") parsedTemplate = parseMustache(imgTemplate.url);
-					else parsedTemplate = parseFString(imgTemplate.url);
-					inputVariables = parsedTemplate.flatMap((item) => item.type === "variable" ? [item.name] : []);
-				} else inputVariables = [];
-				imgTemplateObject = new ImagePromptTemplate({
-					template: imgTemplate,
-					inputVariables,
-					templateFormat: additionalOptions?.templateFormat,
-					additionalContentFields: item
-				});
-			} else throw new Error("Invalid image template");
-			prompt.push(imgTemplateObject);
-		} else if (typeof item === "object") prompt.push(new DictPromptTemplate({
-			template: item,
-			templateFormat: additionalOptions?.templateFormat
-		}));
-		return new this({
-			prompt,
-			additionalOptions
-		});
-	}
-	async format(input) {
-		if (this.prompt instanceof BaseStringPromptTemplate) {
-			const text = await this.prompt.format(input);
-			return this.createMessage(text);
-		} else {
-			const content = [];
-			for (const prompt of this.prompt) {
-				let inputs = {};
-				if (!("inputVariables" in prompt)) throw new Error(`Prompt ${prompt} does not have inputVariables defined.`);
-				for (const item of prompt.inputVariables) {
-					if (!inputs) inputs = { [item]: input[item] };
-					inputs = {
-						...inputs,
-						[item]: input[item]
-					};
-				}
-				if (prompt instanceof BaseStringPromptTemplate) {
-					const formatted = await prompt.format(inputs);
-					let additionalContentFields;
-					if ("additionalContentFields" in prompt) additionalContentFields = prompt.additionalContentFields;
-					if (formatted !== "") content.push({
-						...additionalContentFields,
-						type: "text",
-						text: formatted
-					});
-				} else if (prompt instanceof ImagePromptTemplate) {
-					const formatted = await prompt.format(inputs);
-					let additionalContentFields;
-					if ("additionalContentFields" in prompt) additionalContentFields = prompt.additionalContentFields;
-					content.push({
-						...additionalContentFields,
-						type: "image_url",
-						image_url: formatted
-					});
-				} else if (prompt instanceof DictPromptTemplate) {
-					const formatted = await prompt.format(inputs);
-					let additionalContentFields;
-					if ("additionalContentFields" in prompt) additionalContentFields = prompt.additionalContentFields;
-					content.push({
-						...additionalContentFields,
-						...formatted
-					});
-				}
-			}
-			return this.createMessage(content);
-		}
-	}
-	async formatMessages(values) {
-		return [await this.format(values)];
-	}
-};
-/**
-* Class that represents a human message prompt template. It extends the
-* BaseMessageStringPromptTemplate.
-* @example
-* ```typescript
-* const message = HumanMessagePromptTemplate.fromTemplate("{text}");
-* const formatted = await message.format({ text: "Hello world!" });
-*
-* const chatPrompt = ChatPromptTemplate.fromMessages([message]);
-* const formattedChatPrompt = await chatPrompt.invoke({
-*   text: "Hello world!",
-* });
-* ```
-*/
-var HumanMessagePromptTemplate = class extends _StringImageMessagePromptTemplate {
-	static _messageClass() {
-		return HumanMessage;
-	}
-	static lc_name() {
-		return "HumanMessagePromptTemplate";
-	}
-};
-/**
-* Class that represents an AI message prompt template. It extends the
-* BaseMessageStringPromptTemplate.
-*/
-var AIMessagePromptTemplate = class extends _StringImageMessagePromptTemplate {
-	static _messageClass() {
-		return AIMessage;
-	}
-	static lc_name() {
-		return "AIMessagePromptTemplate";
-	}
-};
-/**
-* Class that represents a system message prompt template. It extends the
-* BaseMessageStringPromptTemplate.
-* @example
-* ```typescript
-* const message = SystemMessagePromptTemplate.fromTemplate("{text}");
-* const formatted = await message.format({ text: "Hello world!" });
-*
-* const chatPrompt = ChatPromptTemplate.fromMessages([message]);
-* const formattedChatPrompt = await chatPrompt.invoke({
-*   text: "Hello world!",
-* });
-* ```
-*/
-var SystemMessagePromptTemplate = class extends _StringImageMessagePromptTemplate {
-	static _messageClass() {
-		return SystemMessage;
-	}
-	static lc_name() {
-		return "SystemMessagePromptTemplate";
-	}
-};
-function _isBaseMessagePromptTemplate(baseMessagePromptTemplateLike) {
-	return typeof baseMessagePromptTemplateLike.formatMessages === "function";
-}
-function _coerceMessagePromptTemplateLike(messagePromptTemplateLike, extra) {
-	if (_isBaseMessagePromptTemplate(messagePromptTemplateLike) || isBaseMessage(messagePromptTemplateLike)) return messagePromptTemplateLike;
-	if (Array.isArray(messagePromptTemplateLike) && messagePromptTemplateLike[0] === "placeholder") {
-		const messageContent = messagePromptTemplateLike[1];
-		if (extra?.templateFormat === "mustache" && typeof messageContent === "string" && messageContent.slice(0, 2) === "{{" && messageContent.slice(-2) === "}}") return new MessagesPlaceholder({
-			variableName: messageContent.slice(2, -2),
-			optional: true
-		});
-		else if (typeof messageContent === "string" && messageContent[0] === "{" && messageContent[messageContent.length - 1] === "}") return new MessagesPlaceholder({
-			variableName: messageContent.slice(1, -1),
-			optional: true
-		});
-		throw new Error(`Invalid placeholder template for format ${extra?.templateFormat ?? `"f-string"`}: "${messagePromptTemplateLike[1]}". Expected a variable name surrounded by ${extra?.templateFormat === "mustache" ? "double" : "single"} curly braces.`);
-	}
-	const message = coerceMessageLikeToMessage(messagePromptTemplateLike);
-	let templateData;
-	if (typeof message.content === "string") templateData = message.content;
-	else templateData = message.content.map((item) => {
-		if ("text" in item) return {
-			...item,
-			text: item.text
-		};
-		else if ("image_url" in item) return {
-			...item,
-			image_url: item.image_url
-		};
-		else return item;
-	});
-	if (message._getType() === "human") return HumanMessagePromptTemplate.fromTemplate(templateData, extra);
-	else if (message._getType() === "ai") return AIMessagePromptTemplate.fromTemplate(templateData, extra);
-	else if (message._getType() === "system") return SystemMessagePromptTemplate.fromTemplate(templateData, extra);
-	else if (ChatMessage.isInstance(message)) return ChatMessagePromptTemplate.fromTemplate(message.content, message.role, extra);
-	else throw new Error(`Could not coerce message prompt template from input. Received message type: "${message._getType()}".`);
-}
-function isMessagesPlaceholder(x) {
-	return x.constructor.lc_name() === "MessagesPlaceholder";
-}
-/**
-* Class that represents a chat prompt. It extends the
-* BaseChatPromptTemplate and uses an array of BaseMessagePromptTemplate
-* instances to format a series of messages for a conversation.
-* @example
-* ```typescript
-* const message = SystemMessagePromptTemplate.fromTemplate("{text}");
-* const chatPrompt = ChatPromptTemplate.fromMessages([
-*   ["ai", "You are a helpful assistant."],
-*   message,
-* ]);
-* const formattedChatPrompt = await chatPrompt.invoke({
-*   text: "Hello world!",
-* });
-* ```
-*/
-var ChatPromptTemplate = class ChatPromptTemplate extends BaseChatPromptTemplate {
-	static lc_name() {
-		return "ChatPromptTemplate";
-	}
-	get lc_aliases() {
-		return { promptMessages: "messages" };
-	}
-	promptMessages;
-	validateTemplate = true;
-	templateFormat = "f-string";
-	constructor(input) {
-		super(input);
-		if (input.templateFormat === "mustache" && input.validateTemplate === void 0) this.validateTemplate = false;
-		Object.assign(this, input);
-		if (this.validateTemplate) {
-			const inputVariablesMessages = /* @__PURE__ */ new Set();
-			for (const promptMessage of this.promptMessages) {
-				if (promptMessage instanceof BaseMessage) continue;
-				for (const inputVariable of promptMessage.inputVariables) inputVariablesMessages.add(inputVariable);
-			}
-			const totalInputVariables = this.inputVariables;
-			const inputVariablesInstance = new Set(this.partialVariables ? totalInputVariables.concat(Object.keys(this.partialVariables)) : totalInputVariables);
-			const difference = new Set([...inputVariablesInstance].filter((x) => !inputVariablesMessages.has(x)));
-			if (difference.size > 0) throw new Error(`Input variables \`${[...difference]}\` are not used in any of the prompt messages.`);
-			const otherDifference = new Set([...inputVariablesMessages].filter((x) => !inputVariablesInstance.has(x)));
-			if (otherDifference.size > 0) throw new Error(`Input variables \`${[...otherDifference]}\` are used in prompt messages but not in the prompt template.`);
-		}
-	}
-	_getPromptType() {
-		return "chat";
-	}
-	async _parseImagePrompts(message, inputValues) {
-		if (typeof message.content === "string") return message;
-		message.content = await Promise.all(message.content.map(async (item) => {
-			if (item.type !== "image_url") return item;
-			let imageUrl = "";
-			if (typeof item.image_url === "string") imageUrl = item.image_url;
-			else if (typeof item.image_url === "object" && item.image_url !== null && "url" in item.image_url && typeof item.image_url.url === "string") imageUrl = item.image_url.url;
-			const formattedUrl = await PromptTemplate.fromTemplate(imageUrl, { templateFormat: this.templateFormat }).format(inputValues);
-			if (typeof item.image_url === "object" && item.image_url !== null && "url" in item.image_url) item.image_url.url = formattedUrl;
-			else item.image_url = formattedUrl;
-			return item;
-		}));
-		return message;
-	}
-	async formatMessages(values) {
-		const allValues = await this.mergePartialAndUserVariables(values);
-		let resultMessages = [];
-		for (const promptMessage of this.promptMessages) if (promptMessage instanceof BaseMessage) resultMessages.push(await this._parseImagePrompts(promptMessage, allValues));
-		else {
-			let inputValues;
-			if (this.templateFormat === "mustache") inputValues = { ...allValues };
-			else inputValues = promptMessage.inputVariables.reduce((acc, inputVariable) => {
-				if (!(inputVariable in allValues) && !(isMessagesPlaceholder(promptMessage) && promptMessage.optional)) throw addLangChainErrorFields(/* @__PURE__ */ new Error(`Missing value for input variable \`${inputVariable.toString()}\``), "INVALID_PROMPT_INPUT");
-				acc[inputVariable] = allValues[inputVariable];
-				return acc;
-			}, {});
-			const message = await promptMessage.formatMessages(inputValues);
-			resultMessages = resultMessages.concat(message);
-		}
-		return resultMessages;
-	}
-	async partial(values) {
-		const newInputVariables = this.inputVariables.filter((iv) => !(iv in values));
-		const newPartialVariables = {
-			...this.partialVariables ?? {},
-			...values
-		};
-		return new ChatPromptTemplate({
-			...this,
-			inputVariables: newInputVariables,
-			partialVariables: newPartialVariables
-		});
-	}
-	static fromTemplate(template, options) {
-		const humanTemplate = new HumanMessagePromptTemplate({ prompt: PromptTemplate.fromTemplate(template, options) });
-		return this.fromMessages([humanTemplate]);
-	}
-	/**
-	* Create a chat model-specific prompt from individual chat messages
-	* or message-like tuples.
-	* @param promptMessages Messages to be passed to the chat model
-	* @returns A new ChatPromptTemplate
-	*/
-	static fromMessages(promptMessages, extra) {
-		const flattenedMessages = promptMessages.reduce((acc, promptMessage) => acc.concat(promptMessage instanceof ChatPromptTemplate ? promptMessage.promptMessages : [_coerceMessagePromptTemplateLike(promptMessage, extra)]), []);
-		const flattenedPartialVariables = promptMessages.reduce((acc, promptMessage) => promptMessage instanceof ChatPromptTemplate ? Object.assign(acc, promptMessage.partialVariables) : acc, Object.create(null));
-		const inputVariables = /* @__PURE__ */ new Set();
-		for (const promptMessage of flattenedMessages) {
-			if (promptMessage instanceof BaseMessage) continue;
-			for (const inputVariable of promptMessage.inputVariables) {
-				if (inputVariable in flattenedPartialVariables) continue;
-				inputVariables.add(inputVariable);
-			}
-		}
-		return new this({
-			...extra,
-			inputVariables: [...inputVariables],
-			promptMessages: flattenedMessages,
-			partialVariables: flattenedPartialVariables,
-			templateFormat: extra?.templateFormat
-		});
-	}
-};
-//#endregion
 //#region node_modules/@langchain/core/dist/tools/index.js
 /**
 * Base class for Tools that accept input of any shape defined by a Zod schema.
@@ -32766,4 +31205,4 @@ function _stringify(content) {
 	}
 }
 //#endregion
-export { enumType as A, ChatMessage as C, isSerializableSchema as D, toJsonSchema as E, isInteropZodSchema as F, objectType as M, stringType as N, anyType as O, getSchemaDescription as P, FunctionMessageChunk as S, ToolMessageChunk as T, AIMessageChunk as _, BaseChatModel as a, HumanMessage as b, createFunctionCallingParser as c, parseToolCall as d, ChatGenerationChunk as f, AIMessage as g, convertOpenAICompletionsStream as h, convertToOpenAITool as i, numberType as j, arrayType as k, convertLangChainToolCallToOpenAI as l, getEnvironmentVariable$1 as m, ChatPromptTemplate as n, assembleStructuredOutputPipeline as o, require_eventemitter3 as p, MessagesPlaceholder as r, createContentParser as s, tool as t, makeInvalidToolCall as u, isAIMessage as v, ChatMessageChunk as w, HumanMessageChunk as x, SystemMessageChunk as y };
+export { objectType as A, ToolMessageChunk as C, arrayType as D, anyType as E, getSchemaDescription as M, isInteropZodSchema as N, enumType as O, require_eventemitter3 as P, ChatMessageChunk as S, isSerializableSchema as T, SystemMessageChunk as _, createContentParser as a, FunctionMessageChunk as b, makeInvalidToolCall as c, getEnvironmentVariable$1 as d, convertOpenAICompletionsStream as f, SystemMessage as g, isAIMessage as h, assembleStructuredOutputPipeline as i, stringType as j, numberType as k, parseToolCall as l, AIMessageChunk as m, convertToOpenAITool as n, createFunctionCallingParser as o, AIMessage as p, BaseChatModel as r, convertLangChainToolCallToOpenAI as s, tool as t, ChatGenerationChunk as u, HumanMessage as v, toJsonSchema as w, ChatMessage as x, HumanMessageChunk as y };

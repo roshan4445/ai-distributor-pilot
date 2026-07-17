@@ -131,6 +131,7 @@ function ConversationsPage() {
   const [localMessages, setLocalMessages] = useState<any[]>([]);
   const [activeInvoice, setActiveInvoice] = useState<any | null>(null);
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
+  const [pipelineStep, setPipelineStep] = useState(0);
 
   // Polling loop to auto-refresh dealer Telegram chats
   useEffect(() => {

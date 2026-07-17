@@ -582,16 +582,6 @@ var Package = createLucideIcon("package", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var Paperclip = createLucideIcon("paperclip", [["path", {
-	d: "m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551",
-	key: "1miecu"
-}]]);
-/**
-* @license lucide-react v1.23.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var PhoneCall = createLucideIcon("phone-call", [
 	["path", {
 		d: "M13 2a9 9 0 0 1 9 9",
@@ -679,38 +669,6 @@ var ShoppingCart = createLucideIcon("shopping-cart", [
 	["path", {
 		d: "M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12",
 		key: "9zh506"
-	}]
-]);
-/**
-* @license lucide-react v1.23.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
-var Smile = createLucideIcon("smile", [
-	["circle", {
-		cx: "12",
-		cy: "12",
-		r: "10",
-		key: "1mglay"
-	}],
-	["path", {
-		d: "M8 14s1.5 2 4 2 4-2 4-2",
-		key: "1y1vjs"
-	}],
-	["line", {
-		x1: "9",
-		x2: "9.01",
-		y1: "9",
-		y2: "9",
-		key: "yxxnd0"
-	}],
-	["line", {
-		x1: "15",
-		x2: "15.01",
-		y1: "9",
-		y2: "9",
-		key: "1p4y9e"
 	}]
 ]);
 /**
@@ -925,4 +883,4 @@ var Zap = createLucideIcon("zap", [["path", {
 	key: "1xq2db"
 }]]);
 //#endregion
-export { FileText as A, ArrowRight as B, MessageCircle as C, LayoutDashboard as D, Lightbulb as E, ChevronDown as F, ArrowDownRight as H, CheckCheck as I, Boxes as L, Download as M, Clock as N, IndianRupee as O, CircleCheck as P, Bell as R, MessageSquare as S, LoaderCircle as T, Activity as U, ArrowLeft as V, Phone as _, Users as a, Package as b, TrendingUp as c, Sparkles as d, Smile as f, Plus as g, Search as h, Video as i, EllipsisVertical as j, Funnel as k, TrendingDown as l, Send as m, X as n, Truck as o, ShoppingCart as p, Wallet as r, TriangleAlert as s, Zap as t, Trash2 as u, PhoneCall as v, MapPin as w, PackageCheck as x, Paperclip as y, ArrowUpRight as z };
+export { Download as A, ArrowDownRight as B, LoaderCircle as C, Funnel as D, IndianRupee as E, Boxes as F, Bell as I, ArrowUpRight as L, CircleCheck as M, ChevronDown as N, FileText as O, CheckCheck as P, ArrowRight as R, MapPin as S, LayoutDashboard as T, Activity as V, PhoneCall as _, Users as a, MessageSquare as b, TrendingUp as c, Sparkles as d, ShoppingCart as f, Phone as g, Plus as h, Video as i, Clock as j, EllipsisVertical as k, TrendingDown as l, Search as m, X as n, Truck as o, Send as p, Wallet as r, TriangleAlert as s, Zap as t, Trash2 as u, Package as v, Lightbulb as w, MessageCircle as x, PackageCheck as y, ArrowLeft as z };
