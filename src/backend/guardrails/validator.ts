@@ -98,10 +98,18 @@ export async function validateRequest(
     for (const word of words) {
       if (potentialProducts.some(p => word.includes(p))) {
         // Look for match in database
-        const hasMatch = products.some(p => 
-          p.name.toLowerCase().includes(word) || 
-          p.sku.toLowerCase().includes(word)
-        );
+        const hasMatch = products.some(p => {
+          const pNameLower = p.name.toLowerCase();
+          const pSkuLower = p.sku.toLowerCase();
+          return pNameLower.includes(word) || 
+                 word.includes(pNameLower) ||
+                 pSkuLower.includes(word) || 
+                 word.includes(pSkuLower) ||
+                 (word.endsWith("s") && (
+                   pNameLower.includes(word.slice(0, -1)) ||
+                   pSkuLower.includes(word.slice(0, -1))
+                 ));
+        });
         if (!hasMatch && products.length > 0) {
           errors.push(`Requested product reference "${word}" is not recognized in our stock catalogs.`);
         }

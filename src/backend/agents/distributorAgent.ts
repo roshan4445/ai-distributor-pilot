@@ -1446,11 +1446,22 @@ async function runFallbackRulesEngine(
       const pSkuTokens = pSkuLower.split(/[\s\-]+/);
       const pNameTokens = pNameLower.split(/[\s\-]+/);
       
+      const isPluralMatch = (token: string, dbToken: string) => {
+        const t1 = token.toLowerCase();
+        const t2 = dbToken.toLowerCase();
+        if (t1 === t2) return true;
+        if (t1.endsWith("s") && t1.slice(0, -1) === t2) return true;
+        if (t2.endsWith("s") && t2.slice(0, -1) === t1) return true;
+        if (t1.endsWith("es") && t1.slice(0, -2) === t2) return true;
+        if (t2.endsWith("es") && t2.slice(0, -2) === t1) return true;
+        return false;
+      };
+
       let score = 0;
       for (const t of tokens) {
         if (t.length > 1 && t !== "want" && t !== "need" && t !== "order" && t !== "pieces" && t !== "peices" && t !== "please" && t !== "select" && t !== "items" && t !== "units" && t !== "wala" && t !== "de" && t !== "do" && t !== "sir" && t !== "muje") {
-          const matchesSku = pSkuTokens.includes(t);
-          const matchesName = pNameTokens.includes(t);
+          const matchesSku = pSkuTokens.some(st => isPluralMatch(t, st));
+          const matchesName = pNameTokens.some(nt => isPluralMatch(t, nt));
           if (matchesSku || matchesName) {
             score += 2;
           }
@@ -1466,7 +1477,7 @@ async function runFallbackRulesEngine(
           const num = Number(m[0]);
           const numIdx = m.index || 0;
           const dist = Math.abs(numIdx - idx);
-          if (dist < minDistance && num < 1000) {
+          if (dist < minDistance && num < 100000) {
             minDistance = dist;
             qty = num;
           }
