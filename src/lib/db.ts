@@ -1,7 +1,9 @@
 import { createClient } from "@libsql/client";
 
+const isBrowser = typeof window !== "undefined";
+
 export const db = createClient({
-  url: "file:local.db",
+  url: isBrowser ? "http://localhost" : "file:local.db",
 });
 
 let initPromise: Promise<void> | null = null;
