@@ -14,9 +14,6 @@ import { useRouter } from "@tanstack/react-router";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/conversations")({
-  beforeLoad: () => {
-    throw redirect({ to: "/" });
-  },
   loader: async () => {
     const [conversations, dealers] = await Promise.all([
       getConversationsList(),
@@ -384,30 +381,86 @@ function ConversationsPage() {
 
           <footer className="p-4 border-t border-border bg-slate-900/10 space-y-3">
             {isBotConfigured ? (
-              <div className="rounded-xl border border-success/20 bg-success/5 p-4 flex items-start gap-3">
-                <div className="h-8 w-8 shrink-0 rounded-lg bg-success/15 grid place-items-center text-success">
-                  <Send className="h-4.5 w-4.5" />
+              <div className="rounded-xl border border-success/20 bg-success/5 p-3 flex items-start gap-2.5">
+                <div className="h-6 w-6 shrink-0 rounded-lg bg-success/15 grid place-items-center text-success">
+                  <Send className="h-3.5 w-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold tracking-tight text-foreground">Telegram Channel Active</div>
-                  <div className="mt-1 text-[11.5px] text-muted-foreground leading-normal">
-                    This B2B chat channel is synchronized with Telegram. Incoming dealer queries and order requests sent to your bot are processed dynamically, and responses are rendered here in real-time.
+                  <div className="text-[12px] font-semibold tracking-tight text-foreground">Telegram Channel Active</div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground leading-normal">
+                    Real-time B2B chat sync with Telegram bot is active. You can also simulate messages using the input below.
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 flex items-start gap-3">
-                <div className="h-8 w-8 shrink-0 rounded-lg bg-warning/15 grid place-items-center text-warning">
-                  <AlertTriangle className="h-4.5 w-4.5" />
+              <div className="rounded-xl border border-warning/20 bg-warning/5 p-3 flex items-start gap-2.5">
+                <div className="h-6 w-6 shrink-0 rounded-lg bg-warning/15 grid place-items-center text-warning">
+                  <AlertTriangle className="h-3.5 w-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-semibold tracking-tight text-foreground">Telegram Setup Required</div>
-                  <div className="mt-1 text-[11.5px] text-muted-foreground leading-normal">
-                    To activate live B2B dealer ordering via Telegram, please obtain a Bot Token from <strong className="text-foreground">@BotFather</strong> and set the <code className="bg-secondary/40 px-1 py-0.5 rounded text-[11px] font-mono">TELEGRAM_BOT_TOKEN</code> variable in your local <strong className="text-foreground">.env</strong> file.
+                  <div className="text-[12px] font-semibold tracking-tight text-foreground">Telegram Setup Recommended</div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground leading-normal">
+                    For real-time WhatsApp-like B2B messaging, configure your <code className="bg-secondary/40 px-1 py-0.5 rounded text-[10px] font-mono">TELEGRAM_BOT_TOKEN</code>.
                   </div>
                 </div>
               </div>
             )}
+
+            <div className="flex items-center justify-between border-t border-border/50 pt-2">
+              <div className="flex items-center gap-1 bg-secondary p-1 rounded-xl text-[12px] h-8">
+                <button
+                  onClick={() => setSimulationMode("dealer")}
+                  className={`px-3 py-1 rounded-lg font-semibold transition inline-flex items-center gap-1 ${
+                    simulationMode === "dealer"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  👤 Act as Dealer
+                </button>
+                <button
+                  onClick={() => setSimulationMode("ai")}
+                  className={`px-3 py-1 rounded-lg font-semibold transition inline-flex items-center gap-1 ${
+                    simulationMode === "ai"
+                      ? "bg-foreground text-background shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  🏢 Act as Distributor
+                </button>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground font-semibold">
+                {simulationMode === "dealer" ? (
+                  <span className="text-primary animate-pulse">Simulating Dealer Mobile WhatsApp Chat</span>
+                ) : (
+                  <span className="text-foreground/80">Simulating Distributor Admin Override Reply</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button className="h-10 w-10 rounded-xl hover:bg-secondary grid place-items-center text-muted-foreground"><Smile className="h-4.5 w-4.5" /></button>
+              <button className="h-10 w-10 rounded-xl hover:bg-secondary grid place-items-center text-muted-foreground"><Paperclip className="h-4.5 w-4.5" /></button>
+              <input 
+                value={typingInput}
+                onChange={(e) => setTypingInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder={simulationMode === "dealer" ? `Type as ${active.dealer} (AI agent will reply)…` : "Type manual message from Kumar Electricals (No AI reply)…"} 
+                className="flex-1 h-10 px-3 rounded-xl bg-secondary text-[13.5px] border border-border focus:border-primary/45 focus:outline-none focus:ring-2 focus:ring-primary/20" 
+                disabled={isSending}
+              />
+              <button 
+                onClick={handleSend}
+                disabled={isSending}
+                className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold shadow-glow inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {isSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Send
+              </button>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Sparkles className="h-3 w-3 text-primary animate-pulse" /> AI Agent runs autonomously on user message.
+            </div>
           </footer>
         </section>
 

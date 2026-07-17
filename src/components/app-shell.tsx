@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 const nav = [
   { to: "/", label: "Mission Control", icon: LayoutDashboard, end: true },
+  { to: "/conversations", label: "Conversations", icon: MessageSquare },
   { to: "/orders", label: "Orders", icon: ShoppingCart },
   { to: "/inventory", label: "Inventory", icon: Package },
   { to: "/invoices", label: "Invoices", icon: FileText },
