@@ -90,6 +90,7 @@ async function initDb() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS invoices (
       id TEXT PRIMARY KEY,
+      invoice_code TEXT,
       dealer TEXT NOT NULL,
       amount REAL NOT NULL,
       date TEXT NOT NULL,
@@ -129,9 +130,10 @@ async function initDb() {
     )
   `);
 
-  // Migration: add idempotency columns if they don't exist on an older table
+  // Migration: add columns if they don't exist on older tables
   try { await db.execute("ALTER TABLE conversation_state ADD COLUMN last_idempotency_key TEXT"); } catch (_) { /* column already exists */ }
   try { await db.execute("ALTER TABLE conversation_state ADD COLUMN last_response TEXT"); } catch (_) { /* column already exists */ }
+  try { await db.execute("ALTER TABLE invoices ADD COLUMN invoice_code TEXT"); } catch (_) { /* column already exists */ }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS stock_alerts (

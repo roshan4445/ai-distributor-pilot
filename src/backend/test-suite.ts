@@ -8,7 +8,24 @@ async function resetConvo(convoId: string) {
 }
 
 async function restoreDBState(dealerId: string, initialDues: number) {
-  await supabaseClient.from("dealers").update({ pending: initialDues, trust: 88 }).eq("id", dealerId);
+  // Guarantee clean and single test dealer profile context
+  await supabaseClient.from("dealers").delete().eq("name", "Sri Lakshmi Agencies");
+  await supabaseClient.from("dealers").delete().eq("id", dealerId);
+
+  await supabaseClient.from("dealers").insert({
+    id: dealerId,
+    name: "Sri Lakshmi Agencies",
+    city: "Madurai",
+    phone: "+91 90032 41889",
+    pending: initialDues,
+    trust: 88,
+    ordersCount: 96,
+    lifetime: 2410000,
+    avgPaymentDays: 14,
+    lastOrder: "18 min ago",
+    status: "active"
+  });
+
   await supabaseClient.from("products").update({ stock: 42 }).eq("sku", "MCB-32A-SP");
   await supabaseClient.from("products").update({ stock: 1840 }).eq("sku", "SW-MOD-6A");
   await supabaseClient.from("products").update({ stock: 15 }).eq("sku", "MCB-12A-SP");
@@ -28,6 +45,22 @@ async function runTests() {
 
   const { supabase: s } = await import("../utils/supabase");
   supabaseClient = s;
+
+  // Guarantee test conversation records exist for FK constraints
+  const testConvos = [
+    "c0000000-0000-0000-0000-000000000001",
+    "c0000000-0000-0000-0000-000000000011",
+    "c0000000-0000-0000-0000-000000000012"
+  ];
+  for (const cid of testConvos) {
+    await supabaseClient.from("conversations").upsert({
+      id: cid,
+      dealer: "Sri Lakshmi Agencies",
+      city: "Madurai",
+      unread: 0,
+      preview: "Test conversation context"
+    });
+  }
 
   const { processAgentRequest } = await import("./agents/distributorAgent");
   const { runCronLogic } = await import("../lib/db-queries");
@@ -481,6 +514,59 @@ async function runTests() {
     results.push({
       scenario: "11. Duplicate Confirm Idempotency",
       status: (firstOk && noDoubleOrder && secondNotFailed) ? "PASS" : "FAIL"
+    });
+  }
+
+  // -------------------------------------------------------------
+  // SCENARIO 12: Payment no-amount clarification
+  // -------------------------------------------------------------
+  {
+    console.log("--- Scenario 12: Payment No-Amount Clarification ---");
+    const convoId = "c0000000-0000-0000-0000-000000000012";
+    const dealerName = "Sri Lakshmi Agencies";
+    const dealerId = "00000000-0000-0000-0000-000000000003";
+
+    await resetConvo(convoId);
+    await restoreDBState(dealerId, startDues);
+
+    // Ensure conversation row exists
+    await supabaseClient.from("conversations").upsert({
+      id: convoId,
+      dealer: dealerName,
+      city: "Madurai",
+      unread: 0,
+      preview: "Payment test"
+    });
+
+    // Clear conversation state
+    await supabaseClient.from("conversation_state").delete().eq("conversation_id", convoId);
+
+    // Send payment notification with no amount
+    const responseStr = await processAgentRequest(
+      "I paid sir",
+      convoId,
+      dealerName
+    );
+    const response = JSON.parse(responseStr);
+
+    // Get current dealer dues to assert they have not changed
+    const { data: dl } = await supabaseClient
+      .from("dealers")
+      .select("pending")
+      .eq("id", dealerId)
+      .maybeSingle();
+
+    const duesUnchanged = dl?.pending === startDues;
+    const noToolsUsed = (response.toolsUsed || []).length === 0;
+    const isClarifying = response.response.toLowerCase().includes("confirm the exact amount") || 
+                        response.response.toLowerCase().includes("how much") ||
+                        response.response.toLowerCase().includes("exact amount you paid");
+
+    console.log(`[DEBUG] Scenario 12: duesUnchanged=${duesUnchanged} (${dl?.pending} vs ${startDues}), noToolsUsed=${noToolsUsed}, responseText="${response.response}"`);
+
+    results.push({
+      scenario: "12. Payment No-Amount Clarification",
+      status: (duesUnchanged && noToolsUsed && isClarifying) ? "PASS" : "FAIL"
     });
   }
 

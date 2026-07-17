@@ -1589,10 +1589,14 @@ async function runFallbackRulesEngine(
     }
 
     if (items.length === 0) {
-      items = [
-        { sku: "MCB-32A-SP", name: "MCB 32A Single Pole", qty: 32, price: 245 }
-      ];
-      total = 7840;
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: "Sir, I couldn't find any previous orders in your history to repeat. Could you please specify what items and quantities you'd like to order?",
+        kind: "text",
+        data: null
+      });
     }
 
     // Save repeat order draft in session memory
@@ -1689,23 +1693,19 @@ async function runFallbackRulesEngine(
     // Guard 1: No quantity specified — ask how many
     const hasQuantity = /\b\d+\b/.test(lower);
 
-    // Guard 2: Multiple products matched with equal scores — ask which one
-    if (finalMatched.length > 1) {
-      const topScore = Math.max(...finalMatched.map(m => m.score));
-      const topMatches = finalMatched.filter(m => m.score === topScore);
-      if (topMatches.length > 1) {
-        const optionsList = topMatches.map(m =>
-          `**${m.product.name}** (${m.product.sku}) — ₹${m.product.price}`
-        ).join("\n• ");
-        return JSON.stringify({
-          intent: "ORDER",
-          confidence: 0.75,
-          toolsUsed: [],
-          response: `Sir, we have multiple products matching your request:\n• ${optionsList}\n\nWhich one would you like${hasQuantity ? "" : ", and how many"}?`,
-          kind: "text",
-          data: null
-        });
-      }
+    // Wire thickness ambiguity check
+    const hasWire2 = finalMatched.some(m => m.product.sku === "WR-2.5-90");
+    const hasWire4 = finalMatched.some(m => m.product.sku === "WR-4.0-90");
+    const isWireVague = lower.includes("wire") && !lower.includes("2.5") && !lower.includes("4.0") && !lower.includes("wr-2.5-90") && !lower.includes("wr-4.0-90");
+    if (hasWire2 && hasWire4 && isWireVague) {
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: `Sir, we have multiple wire options available: **House Wire 2.5mm** (₹1,980) or **House Wire 4.0mm** (₹3,120). Which specific thickness would you like${hasQuantity ? "" : ", and how many"}?`,
+        kind: "text",
+        data: null
+      });
     }
 
     // Guard 3: Product matched but no quantity — ask how many
@@ -1873,7 +1873,17 @@ async function runFallbackRulesEngine(
 
   if (lower.includes("paid") || lower.includes("pay") || lower.includes("remitted") || lower.includes("transferred") || lower.includes("sent")) {
     const match = text.match(/\d+/);
-    const amount = match ? Number(match[0]) : 20000;
+    if (!match) {
+      return JSON.stringify({
+        intent: "PAYMENT",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: "Thank you sir! Could you confirm the exact amount you paid so I can update the ledger correctly?",
+        kind: "text",
+        data: null
+      });
+    }
+    const amount = Number(match[0]);
     
     const dealer = dealers.find(d => d.id === dealerId) || dealers[0];
     const beforeAmount = dealer ? dealer.pending : 124500;
