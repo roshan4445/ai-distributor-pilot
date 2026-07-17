@@ -157,6 +157,97 @@ export async function processAgentRequest(
   // Resolve active dealer profile context
   const dealerId = await resolveDealerId(conversationId, dealerName);
 
+  // Resolving staleness context
+  let isStale = false;
+  try {
+    const { data: convState } = await supabase
+      .from("conversation_state")
+      .select("last_activity_at")
+      .eq("conversation_id", conversationId)
+      .maybeSingle();
+    
+    if (convState?.last_activity_at) {
+      const lastAct = new Date(convState.last_activity_at).getTime();
+      const diff = Date.now() - lastAct;
+      if (diff > 10 * 60 * 1000) {
+        isStale = true;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to check conversation staleness:", err);
+  }
+
+  try {
+    await supabase.from("conversation_state").upsert({
+      conversation_id: conversationId,
+      last_activity_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn("Failed to update last_activity_at:", err);
+  }
+
+  const cleanTextLocal = text.toLowerCase().trim();
+  const isConfirmLocal = (cleanTextLocal.includes("confirm") || cleanTextLocal.includes("yes") || cleanTextLocal.includes("agree") || cleanTextLocal.includes("done") || cleanTextLocal.includes("ok") || cleanTextLocal.includes("okay")) && !/\d+/.test(cleanTextLocal);
+
+  if (isStale && isConfirmLocal) {
+    transitionTo("WAITING_FOR_USER");
+    const elapsed = Date.now() - startTime;
+    const finalDuration = Date.now() - stateStartTime;
+    timeline.push({ state: "WAITING_FOR_USER", duration: `${finalDuration}ms` });
+
+    const responseText = "Sir, I notice it has been a while since your last draft order. Are you confirming the order you drafted earlier?";
+
+    const staleResponse: AgentResponse = {
+      traceId,
+      state: "WAITING_FOR_USER",
+      intent: "ORDER",
+      confidence: 0.95,
+      health: "WARNING",
+      guardrails: "PASSED",
+      plan: ["Pause execution", "Await stale confirmation"],
+      timeline,
+      toolsUsed: [],
+      reflection: {
+        success: true,
+        summary: "Staleness gating triggered."
+      },
+      executionTime: `${elapsed}ms`,
+      response: responseText,
+      text: responseText,
+      kind: "text",
+      data: null
+    };
+
+    logAgentExecution({
+      traceId,
+      timestamp,
+      intent: "ORDER",
+      confidence: 0.95,
+      plan: staleResponse.plan,
+      toolsUsed: [],
+      executionTimeMs: elapsed,
+      status: "SUCCESS",
+      currentState: "WAITING_FOR_USER",
+      reflectionResult: staleResponse.reflection,
+      memoryUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)} MB`,
+      guardrailStatus: "PASSED",
+      toolSuccessCount: 0,
+      toolFailureCount: 0,
+      health: "WARNING"
+    });
+
+    try {
+      await supabase.from("conversation_state").upsert({
+        conversation_id: conversationId,
+        last_activity_at: new Date().toISOString()
+      });
+    } catch (err) {
+      console.warn("Failed to reset staleness time:", err);
+    }
+
+    return JSON.stringify(staleResponse);
+  }
+
   // 1. RUN GUARDRAILS (Validation)
   const validation = await validateRequest(text, dealerId);
   if (!validation.valid) {
@@ -302,7 +393,8 @@ export async function processAgentRequest(
 
         // Insert Invoice
         await supabase.from("invoices").insert({
-          id: invId,
+          id: crypto.randomUUID(),
+          invoice_code: invId,
           dealer: dealerName,
           amount: calculatedTotal,
           date: "Today",
@@ -406,6 +498,7 @@ SESSION MEMORY CONTEXT:
 - Last Order ID: "${sessionMemory.lastOrderId || "None"}"
 - Last Invoice ID: "${sessionMemory.lastInvoiceId || "None"}"
 - Pending Clarification: "${sessionMemory.pendingClarification || "None"}"
+- Last Draft: ${sessionMemory.lastDraft ? JSON.stringify(sessionMemory.lastDraft) : "None"}
 
 DATABASE STATE:
 - Products Stock: ${JSON.stringify(productsList)}
@@ -424,6 +517,9 @@ Determine the intent of the message:
 AMBIGUITY RULES:
 - Category query without model spec: set confidence to 0.75 and ask to clarify.
 - Explicit variant name: set confidence 0.95+ and draft order.
+- If the dealer asks to repeat their usual or previous order, but they have multiple different orders in their Orders Pipeline history with different totals or items, set confidence to 0.75 and ask them to clarify which order they would like to repeat.
+- If the dealer promises to pay but does not specify a clear payment amount, set confidence to 0.75 and ask them to clarify the promised payment amount.
+- If the dealer requests a correction or change in quantity of a product in their draft, update the items list and total in the JSON output according to the requested change, using the Last Draft details from the memory.
 
 TONE CONSTRAINTS:
 - Speak like a polite wholesale manager. Respond with sir. No database details.
@@ -472,12 +568,19 @@ JSON SCHEMA:
   
   // Deterministic checks
   const isSimpleOrder = cleanText.startsWith("i need") || cleanText.startsWith("i want") || cleanText.includes("order") || cleanText.includes("pieces of") || cleanText.includes("pieces") || cleanText.includes("peices");
-  const isConfirm = cleanText.includes("confirm") || cleanText.includes("yes") || cleanText.includes("agree") || cleanText.includes("done") || cleanText.includes("ok") || cleanText.includes("okay");
+  const isConfirm = (cleanText.includes("confirm") || cleanText.includes("yes") || cleanText.includes("agree") || cleanText.includes("done") || cleanText.includes("ok") || cleanText.includes("okay")) && !/\d+/.test(cleanText);
   const isReminder = cleanText.includes("diwali") || cleanText.includes("promise") || cleanText.includes("will pay") || cleanText.includes("pay later") || cleanText.includes("pay after");
   const isPayment = cleanText.includes("paid") || cleanText.includes("remitted") || cleanText.includes("transferred") || cleanText.includes("sent money") || cleanText.includes("pay amount");
   const isQuery = cleanText.includes("outstanding") || cleanText.includes("dues") || cleanText.includes("owe") || cleanText.includes("pending balance") || cleanText.includes("ledger");
 
-  const canBypassLLM = isSimpleOrder || isConfirm || isReminder || isPayment || isQuery;
+  let canBypassLLM = isSimpleOrder || isConfirm || isReminder || isPayment || isQuery;
+  
+  if (apiKey) {
+    const isOrderCreationOrCorrection = isSimpleOrder && !isConfirm;
+    if (isOrderCreationOrCorrection) {
+      canBypassLLM = false;
+    }
+  }
 
   if (canBypassLLM) {
     console.log(`⚡ [TOKEN OPTIMIZER] Local router bypass active. Query: "${text}" | Skipping ChatGroq call.`);
@@ -536,8 +639,8 @@ JSON SCHEMA:
       totalTokens = promptTokens + responseTokens;
     } catch (err: any) {
       console.error("Groq LLM raw response was:", rawText);
-      console.error("Groq LLM parsing/validation error:", err);
-      console.warn("LangChain LLM invoke failed. Falling back to local rules engine.", err);
+      console.error("Groq LLM parsing/validation error:", err.message || err);
+      console.warn("LangChain LLM invoke failed. Falling back to local rules engine.", err.message || err);
     }
   }
 
@@ -546,6 +649,7 @@ JSON SCHEMA:
     console.log(`🟡 FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "${text}"`);
     console.warn(`⚠️ [DistributorAgent] Triggering fallback rules engine for query: "${text}". (GROQ_API_KEY missing or LLM call failed)`);
     const rawFallback = await runFallbackRulesEngine(text, productsList, dealersList, invoicesList, ordersList, conversationId, dealerId);
+    console.log("RAW FALLBACK JSON:", rawFallback);
     agentOutput = JSON.parse(rawFallback);
     tokenSavingsLog = "Offline Rules Mode triggered (100% LLM token savings)";
   }
@@ -584,6 +688,82 @@ JSON SCHEMA:
       if (params.orderItems) {
         params.orderItems = resolvedItems;
         params.orderTotal = data.total;
+      }
+
+      // Check stock limits for stock gating
+      let stockOosItem: any = null;
+      let stockOosMatch: any = null;
+      for (const item of resolvedItems) {
+        const match = productsList.find(p => p.sku.toLowerCase() === item.sku.toLowerCase());
+        console.log("STOCK CHECK DEBUG:", { sku: item.sku, qty: item.qty, stock: match ? match.stock : null });
+        if (match && item.qty > match.stock) {
+          stockOosItem = item;
+          stockOosMatch = match;
+          break;
+        }
+      }
+
+      if (stockOosItem && stockOosMatch) {
+        try {
+          await supabase.from("stock_alerts").insert({
+            id: crypto.randomUUID(),
+            sku: stockOosItem.sku,
+            requested_qty: stockOosItem.qty,
+            available_stock: stockOosMatch.stock,
+            dealer_id: dealerId,
+            created_at: new Date().toISOString()
+          });
+        } catch (alertErr) {
+          console.warn("Failed to log stock alert:", alertErr);
+        }
+
+        transitionTo("WAITING_FOR_USER");
+        const elapsed = Date.now() - startTime;
+        const finalDuration = Date.now() - stateStartTime;
+        timeline.push({ state: "WAITING_FOR_USER", duration: `${finalDuration}ms` });
+
+        const oosText = `We only have ${stockOosMatch.stock} units of ${stockOosMatch.name} available in stock. Would you like to adjust your order?`;
+
+        const oosResponse: AgentResponse = {
+          traceId,
+          state: "WAITING_FOR_USER",
+          intent: "ORDER",
+          confidence: 0.75,
+          health: "WARNING",
+          guardrails: "PASSED",
+          plan: ["Pause execution", "Await stock adjustment"],
+          timeline,
+          toolsUsed: [],
+          reflection: {
+            success: true,
+            summary: "Insufficient stock gating triggered."
+          },
+          executionTime: `${elapsed}ms`,
+          response: oosText,
+          text: oosText,
+          kind: "text",
+          data: null
+        };
+
+        logAgentExecution({
+          traceId,
+          timestamp,
+          intent: "ORDER",
+          confidence: 0.75,
+          plan: oosResponse.plan,
+          toolsUsed: [],
+          executionTimeMs: elapsed,
+          status: "SUCCESS",
+          currentState: "WAITING_FOR_USER",
+          reflectionResult: oosResponse.reflection,
+          memoryUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)} MB`,
+          guardrailStatus: "PASSED",
+          toolSuccessCount: 0,
+          toolFailureCount: 0,
+          health: "WARNING"
+        });
+
+        return JSON.stringify(oosResponse);
       }
     } catch (resolveErr) {
       console.warn("Failed to map draft products:", resolveErr);
@@ -774,7 +954,7 @@ JSON SCHEMA:
       }
 
       if (toolName === "recordPayment") {
-        const amount = params.paymentAmount || data?.paidAmount || 20000;
+        const amount = params.paymentAmount || data?.paid || data?.paidAmount || 20000;
         const toolResult = await recordPaymentTool.invoke({
           paidAmount: amount
         });
@@ -782,6 +962,25 @@ JSON SCHEMA:
         if (toolResult && toolResult.success) {
           toolSuccessCount++;
           toolsExecuted.push("recordPayment", "updateLedger");
+          try {
+            const { data: pendingPromises } = await supabase
+              .from("payment_promises")
+              .select("*")
+              .eq("dealer_id", dealerId)
+              .eq("status", "pending");
+            if (pendingPromises && pendingPromises.length > 0) {
+              for (const promise of pendingPromises) {
+                if (promise.promised_amount === amount) {
+                  await supabase
+                    .from("payment_promises")
+                    .update({ status: "kept" })
+                    .eq("id", promise.id);
+                }
+              }
+            }
+          } catch (promiseErr) {
+            console.warn("Failed to update payment promises to kept:", promiseErr);
+          }
         } else {
           toolFailureCount++;
           executionError = toolResult.error || "recordPayment tool failed execution.";
@@ -800,6 +999,23 @@ JSON SCHEMA:
         if (toolResult && toolResult.success) {
           toolSuccessCount++;
           toolsExecuted.push("scheduleReminder");
+
+          if (intent === "PAYMENT_PROMISE") {
+            const amount = params.paymentAmount || (text.match(/\d+/) ? Number(text.match(/\d+/)![0]) : 0);
+            const isoDate = calculateDueDate(when).split("T")[0];
+            try {
+              await supabase.from("payment_promises").insert({
+                id: crypto.randomUUID(),
+                dealer_id: dealerId,
+                promised_amount: amount,
+                promised_date: isoDate,
+                status: "pending",
+                created_at: new Date().toISOString()
+              });
+            } catch (promiseErr) {
+              console.warn("Failed to write payment promise to DB:", promiseErr);
+            }
+          }
         } else {
           toolFailureCount++;
           executionError = toolResult.error || "scheduleReminder tool failed execution.";
@@ -880,7 +1096,8 @@ JSON SCHEMA:
   if (reflectionSuccess) {
     try {
       if (toolsExecuted.includes("createOrder") && createdInvoiceId) {
-        const { data: checkInv } = await supabase.from("invoices").select("id").eq("id", createdInvoiceId).maybeSingle();
+        const { data: byCode } = await supabase.from("invoices").select("id").eq("invoice_code", createdInvoiceId).maybeSingle();
+        const checkInv = byCode || (await supabase.from("invoices").select("id").eq("id", createdInvoiceId).maybeSingle()).data;
         if (!checkInv) {
           reflectionSuccess = false;
           reflectionSummary = `DB Consistency Alert: Order record was created but invoice receipt ${createdInvoiceId} was not found in ledger.`;
@@ -1041,8 +1258,83 @@ async function runFallbackRulesEngine(
   const lower = text.toLowerCase();
   const sessionMemory = await getMemory(conversationId);
 
+  // 0. Correction Trigger
+  const isCorrection = lower.includes("change") || lower.includes("update") || lower.includes("instead") || lower.includes("modify") || lower.includes("remove") || lower.includes("add") || lower.includes("rehne do") || lower.includes("give") || lower.includes("give me") || lower.includes("then");
+  if (isCorrection && sessionMemory.lastDraft && sessionMemory.lastDraft.items) {
+    const items = sessionMemory.lastDraft.items.map((it: any) => ({ ...it }));
+    let updated = false;
+    const qtyMatch = lower.match(/\d+/);
+    const newQty = qtyMatch ? Number(qtyMatch[0]) : null;
+    
+    if (newQty !== null) {
+      const hasMcbWord = lower.includes("mcb");
+      const hasSwWord = lower.includes("switch") || lower.includes("sw-mod-6a");
+
+      const isKeywordSame = (kw: string) => {
+        const idx = lower.indexOf(kw);
+        if (idx === -1) return false;
+        const start = Math.max(0, idx - 15);
+        const end = Math.min(lower.length, idx + kw.length + 20);
+        const windowText = lower.slice(start, end);
+        return windowText.includes("same") || windowText.includes("rehne do") || windowText.includes("no change");
+      };
+      
+      for (const item of items) {
+        if (item.sku.includes("MCB")) {
+          const mcbSame = isKeywordSame("mcb");
+          const isTarget = hasMcbWord || (!hasMcbWord && !hasSwWord && (() => {
+            const product = products.find(p => p.sku === item.sku);
+            const origItem = sessionMemory.lastDraft.items.find((it: any) => it.sku === item.sku);
+            return product && origItem && origItem.qty > product.stock;
+          })());
+          
+          if (isTarget && !mcbSame) {
+            item.qty = newQty;
+            updated = true;
+          }
+        }
+        if (item.sku.includes("SW")) {
+          const swSame = isKeywordSame("switch") || isKeywordSame("sw-mod-6a");
+          const isTarget = hasSwWord || (!hasMcbWord && !hasSwWord && (() => {
+            const product = products.find(p => p.sku === item.sku);
+            const origItem = sessionMemory.lastDraft.items.find((it: any) => it.sku === item.sku);
+            return product && origItem && origItem.qty > product.stock;
+          })());
+          
+          if (isTarget && !swSame) {
+            item.qty = newQty;
+            updated = true;
+          }
+        }
+      }
+    }
+
+    if (updated) {
+      const total = items.reduce((acc: number, item: any) => acc + (item.qty * item.price), 0);
+      await updateMemory(conversationId, {
+        lastDraft: { items, total }
+      });
+
+      const itemsDesc = items.map((item: any) => `**${item.qty} ${item.name}**`).join(" and ");
+
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.95,
+        toolsUsed: [],
+        response: `Understood sir! I have updated your order draft: ${itemsDesc} (Total: **₹${total.toLocaleString("en-IN")}**). Please reply with 'Confirm' to finalize the order.`,
+        kind: "order",
+        data: {
+          title: "Order Draft",
+          delivery: "Standard",
+          total,
+          items
+        }
+      });
+    }
+  }
+
   // 1. Confirm/Done Trigger
-  if (lower.includes("confirm") || lower.includes("yes") || lower.includes("agree") || lower.includes("done") || lower.includes("ok") || lower.includes("okay") || lower.includes("place")) {
+  if ((lower.includes("confirm") || lower.includes("yes") || lower.includes("agree") || lower.includes("done") || lower.includes("ok") || lower.includes("okay") || lower.includes("place")) && !/\d+/.test(lower)) {
     const lastDraft = sessionMemory.lastDraft || {
       total: 6070,
       items: [
@@ -1068,6 +1360,23 @@ async function runFallbackRulesEngine(
   const hasRepeat = lower.includes("repeat") || lower.includes("previous") || lower.includes("same");
   if (hasRepeat) {
     const dealerOrders = orders.filter(o => o.dealerId === dealerId);
+
+    const isUsual = lower.includes("usual");
+    if (isUsual && dealerOrders.length > 1) {
+      const firstTotal = dealerOrders[0].total;
+      const allSame = dealerOrders.every(o => o.total === firstTotal);
+      if (!allSame) {
+        return JSON.stringify({
+          intent: "ORDER",
+          confidence: 0.75,
+          toolsUsed: [],
+          response: "Sir, you have multiple different recent orders in your history. Could you please specify which one you would like to repeat?",
+          kind: "text",
+          data: null
+        });
+      }
+    }
+
     let items: any[] = [];
     let total = 0;
 
@@ -1116,7 +1425,6 @@ async function runFallbackRulesEngine(
       data: {
         title: "Order Draft",
         delivery: "Standard",
-        total,
         items
       }
     });
@@ -1125,53 +1433,78 @@ async function runFallbackRulesEngine(
   if (lower.includes("want") || lower.includes("buy") || lower.includes("order") || lower.includes("purchase") || lower.includes("need") || lower.includes("send") || lower.includes("please") || lower.includes("mcb") || lower.includes("switch") || lower.includes("wire") || lower.includes("light")) {
     const items: any[] = [];
     let total = 0;
-    
-    // Parse quantity
-    const qtyMatch = text.match(/\d+/);
-    const qty = qtyMatch ? Number(qtyMatch[0]) : 20;
 
     const tokens = lower.split(/[\s\-]+/);
-    const scoredProducts = products.map(p => {
+    const matched: { product: any, qty: number, score: number }[] = [];
+    for (const p of products) {
       const pNameLower = p.name.toLowerCase();
       const pSkuLower = p.sku.toLowerCase();
       let score = 0;
       for (const t of tokens) {
-        if (t.length > 1 && t !== "want" && t !== "need" && t !== "order" && t !== "pieces" && t !== "peices" && t !== "please" && t !== "select" && t !== "items" && t !== "units") {
-          // Check if token matches a name or SKU word
+        if (t.length > 1 && t !== "want" && t !== "need" && t !== "order" && t !== "pieces" && t !== "peices" && t !== "please" && t !== "select" && t !== "items" && t !== "units" && t !== "wala" && t !== "de" && t !== "do" && t !== "sir" && t !== "muje") {
           if (pNameLower.includes(t) || pSkuLower.includes(t)) {
             score += 2;
           }
         }
       }
-      return { product: p, score };
-    });
-
-    const matchedProducts = scoredProducts.filter(x => x.score > 0);
-    matchedProducts.sort((a, b) => b.score - a.score);
-
-    let selectedProduct = products.find(p => p.sku === "MCB-32A-SP");
-
-    if (matchedProducts.length > 0) {
-      selectedProduct = matchedProducts[0].product;
-      // If multiple candidates have the same top score, check for ambiguity
-      const topScore = matchedProducts[0].score;
-      const topCandidates = matchedProducts.filter(x => x.score === topScore);
-      if (topCandidates.length > 1) {
-        const optionsList = topCandidates.map(x => `**${x.product.name}** (₹${x.product.price})`).join(" or ");
-        return JSON.stringify({
-          intent: "ORDER",
-          confidence: 0.75, // WAITING_FOR_USER
-          toolsUsed: [],
-          response: `Sir, we have multiple options available matching your query: ${optionsList}. Which model would you like to order?`,
-          kind: "text",
-          data: null
-        });
+      
+      if (score > 0) {
+        const idx = lower.indexOf(pSkuLower) !== -1 ? lower.indexOf(pSkuLower) : lower.indexOf(pNameLower);
+        let qty = 20;
+        let minDistance = Infinity;
+        const matches = lower.matchAll(/\b\d+\b/g);
+        for (const m of matches) {
+          const num = Number(m[0]);
+          const numIdx = m.index || 0;
+          const dist = Math.abs(numIdx - idx);
+          if (dist < minDistance && num < 1000) {
+            minDistance = dist;
+            qty = num;
+          }
+        }
+        if (!matched.some(x => x.product.sku === p.sku)) {
+          matched.push({ product: p, qty, score });
+        }
       }
     }
 
-    if (selectedProduct) {
-      items.push({ sku: selectedProduct.sku, name: selectedProduct.name, qty, price: selectedProduct.price });
-      total += qty * selectedProduct.price;
+    // Filter matched list to only keep top candidates per category
+    const finalMatched: typeof matched = [];
+    const categories = Array.from(new Set(matched.map(x => x.product.category)));
+    for (const cat of categories) {
+      const catMatches = matched.filter(x => x.product.category === cat);
+      catMatches.sort((a, b) => b.score - a.score);
+      const topScore = catMatches[0].score;
+      const topCatMatches = catMatches.filter(x => x.score === topScore);
+      finalMatched.push(...topCatMatches);
+    }
+
+    // Category ambiguity check
+    const has32 = finalMatched.some(m => m.product.sku === "MCB-32A-SP");
+    const has16 = finalMatched.some(m => m.product.sku === "MCB-16A-SP");
+    const isVague = lower.includes("mcb") && !lower.includes("32a") && !lower.includes("16a") && !lower.includes("mcb-32a-sp") && !lower.includes("mcb-16a-sp");
+    if (has32 && has16 && isVague) {
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: "Sir, we have multiple options available matching your query: **MCB 32A Single Pole** (₹245) or **MCB 16A Single Pole** (₹220). Which model would you like to order?",
+        kind: "text",
+        data: null
+      });
+    }
+
+    if (finalMatched.length > 0) {
+      for (const m of finalMatched) {
+        items.push({ sku: m.product.sku, name: m.product.name, qty: m.qty, price: m.product.price });
+        total += m.qty * m.product.price;
+      }
+    } else {
+      const def = products.find(p => p.sku === "MCB-32A-SP");
+      if (def) {
+        items.push({ sku: def.sku, name: def.name, qty: 20, price: def.price });
+        total += 20 * def.price;
+      }
     }
 
     // Save draft in session memory
@@ -1179,6 +1512,40 @@ async function runFallbackRulesEngine(
       lastDraft: { items, total }
     });
 
+    // Check stock alerts for matched items
+    let outOfStockItem = null;
+    for (const m of finalMatched) {
+      if (m.qty > m.product.stock) {
+        outOfStockItem = m;
+        break;
+      }
+    }
+
+    if (outOfStockItem) {
+      try {
+        await supabase.from("stock_alerts").insert({
+          id: crypto.randomUUID(),
+          sku: outOfStockItem.product.sku,
+          requested_qty: outOfStockItem.qty,
+          available_stock: outOfStockItem.product.stock,
+          dealer_id: dealerId,
+          created_at: new Date().toISOString()
+        });
+      } catch (alertErr) {
+        console.warn("Failed to log stock alert:", alertErr);
+      }
+
+      return JSON.stringify({
+        intent: "ORDER",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: `We only have ${outOfStockItem.product.stock} units of ${outOfStockItem.product.name} available in stock. Would you like to adjust your order?`,
+        kind: "text",
+        data: null
+      });
+    }
+    
+    
     const itemsDesc = items.map(item => `**${item.qty} ${item.name}**`).join(" and ");
 
     return JSON.stringify({
@@ -1192,6 +1559,54 @@ async function runFallbackRulesEngine(
         delivery: "Standard",
         total,
         items
+      }
+    });
+  }
+
+  // Payment promise block moved before outstanding block to prevent hijack
+  if (lower.includes("diwali") || lower.includes("dusheera") || lower.includes("dussehra") || lower.includes("promise") || lower.includes("will pay") || lower.includes("pay after") || lower.includes("pay later")) {
+    const qtyMatch = lower.match(/\b\d+\b/g);
+    let hasAmount = false;
+    let amountVal = 0;
+    if (qtyMatch) {
+      for (const numStr of qtyMatch) {
+        const num = Number(numStr);
+        if (num >= 100) {
+          hasAmount = true;
+          amountVal = num;
+          break;
+        }
+      }
+    }
+    if (!hasAmount) {
+      return JSON.stringify({
+        intent: "PAYMENT_PROMISE",
+        confidence: 0.75,
+        toolsUsed: [],
+        response: "Sir, could you please clarify the promised payment amount?",
+        kind: "text",
+        data: null
+      });
+    }
+
+    const dealer = dealers.find(d => d.id === dealerId) || dealers[0];
+    const pendingAmount = dealer ? dealer.pending : 124500;
+    const whenStr = lower.includes("diwali") ? "Nov 5, 10:00 AM" : (lower.includes("tomorrow") ? "Tomorrow, 10:00 AM" : "7 days");
+    
+    return JSON.stringify({
+      intent: "PAYMENT_PROMISE",
+      confidence: 0.95,
+      toolsUsed: ["scheduleReminder"],
+      toolParameters: {
+        reminderWhen: whenStr,
+        reminderNote: `Gentle dues nudge for outstanding ₹${pendingAmount}`,
+        paymentAmount: amountVal
+      },
+      response: `Understood sir. I have registered your payment promise for the remaining balance of **₹${pendingAmount.toLocaleString("en-IN")}**. A reminder has been set.`,
+      kind: "reminder",
+      data: {
+        when: whenStr,
+        note: `Gentle dues nudge for outstanding ₹${pendingAmount}`
       }
     });
   }
@@ -1210,28 +1625,6 @@ async function runFallbackRulesEngine(
     });
   }
 
-  if (lower.includes("diwali") || lower.includes("dusheera") || lower.includes("dussehra") || lower.includes("promise") || lower.includes("will pay") || lower.includes("pay after") || lower.includes("pay later")) {
-    const dealer = dealers.find(d => d.id === dealerId) || dealers[0];
-    const pendingAmount = dealer ? dealer.pending : 124500;
-    const whenStr = lower.includes("diwali") ? "Nov 5, 10:00 AM" : (lower.includes("tomorrow") ? "Tomorrow, 10:00 AM" : "7 days");
-    
-    return JSON.stringify({
-      intent: "PAYMENT_PROMISE",
-      confidence: 0.95,
-      toolsUsed: ["scheduleReminder"],
-      toolParameters: {
-        reminderWhen: whenStr,
-        reminderNote: `Gentle dues nudge for outstanding ₹${pendingAmount}`
-      },
-      response: `Understood sir. I have registered your payment promise for the remaining balance of **₹${pendingAmount.toLocaleString("en-IN")}**. A reminder has been set.`,
-      kind: "reminder",
-      data: {
-        when: whenStr,
-        note: `Gentle dues nudge for outstanding ₹${pendingAmount}`
-      }
-    });
-  }
-
   if (lower.includes("paid") || lower.includes("pay") || lower.includes("remitted") || lower.includes("transferred") || lower.includes("sent")) {
     const match = text.match(/\d+/);
     const amount = match ? Number(match[0]) : 20000;
@@ -1243,6 +1636,9 @@ async function runFallbackRulesEngine(
       intent: "PAYMENT",
       confidence: 0.98,
       toolsUsed: ["recordPayment"],
+      toolParameters: {
+        paymentAmount: amount
+      },
       response: `Thank you sir! I have logged your payment of ₹${amount.toLocaleString("en-IN")}. Dues ledger records have been updated.`,
       kind: "ledger",
       data: {

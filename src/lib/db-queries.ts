@@ -124,7 +124,7 @@ export const getDealerById = createServerFn({ method: "GET" })
     let messages: any[] = [];
     const activeConvo = conversations?.[0];
     if (activeConvo) {
-      const msgs = (activeConvo.messages as any[]) || [];
+      const msgs = ((activeConvo.messages as any[]) || []).filter(m => m.fromRole !== "system_memory" && m.fromRole !== "system_memory");
       messages = msgs.map(m => ({
         id: String(m.id),
         from: String(m.fromRole) as "dealer" | "ai" | "system",
@@ -161,7 +161,7 @@ export const getDealerById = createServerFn({ method: "GET" })
         items: [],
       })),
       invoices: (invoices || []).map(inv => ({
-        id: String(inv.id),
+        id: String(inv.invoice_code || inv.id),
         dealer: String(inv.dealer),
         amount: Number(inv.amount),
         date: String(inv.date),
@@ -192,7 +192,7 @@ export const getInventory = createServerFn({ method: "GET" }).handler(async () =
 export const getInvoices = createServerFn({ method: "GET" }).handler(async () => {
   const { data } = await supabase.from("invoices").select("*").order("id", { ascending: false });
   return (data || []).map(row => ({
-    id: String(row.id),
+    id: String(row.invoice_code || row.id),
     dealer: String(row.dealer),
     amount: Number(row.amount),
     date: String(row.date),
@@ -308,7 +308,7 @@ export const postMessage = createServerFn({ method: "POST" })
 
     const { data: msgs } = await supabase.from("messages").select("id, fromRole, text, time").eq("conversationId", data.conversationId);
     
-    const sortedMsgs = msgs || [];
+    const sortedMsgs = (msgs || []).filter(m => m.fromRole !== "system_memory" && m.fromRole !== "system_memory");
     sortedMsgs.sort((a, b) => {
       const isSeededA = a.id.startsWith("m") && !a.id.includes("-");
       const isSeededB = b.id.startsWith("m") && !b.id.includes("-");
@@ -503,108 +503,152 @@ export const recordPaymentAction = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export async function executeCronLogic(forceAll = false) {
+  try {
+    const now = new Date();
+
+    // 1. Fetch all messages of kind "reminder"
+    const { data: reminderMsgs, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("kind", "reminder");
+
+    if (error) {
+      console.error("Cron: Failed to fetch reminders from Supabase:", error);
+      return { success: false, error: String(error) };
+    }
+
+    let processedCount = 0;
+
+    for (const msg of (reminderMsgs || [])) {
+      try {
+        if (!msg.data) continue;
+        
+        let payload: any = null;
+        try {
+          payload = JSON.parse(msg.data);
+        } catch (pe) {
+          // Corrupt JSON payload inside message row - skip
+          continue;
+        }
+
+        if (!payload) continue;
+
+        // Check if pending status
+        const status = payload.status || "pending";
+        if (status !== "pending") continue;
+
+        // Check due date
+        const dueDateStr = payload.dueDate;
+        if (!dueDateStr && !forceAll) continue;
+
+        if (dueDateStr && !forceAll) {
+          const dueDate = new Date(dueDateStr);
+          if (dueDate > now) {
+            // Not due yet
+            continue;
+          }
+        }
+
+        // Idempotency check: Transition local status to 'processing'
+        payload.status = "processing";
+        await supabase
+          .from("messages")
+          .update({ data: JSON.stringify(payload) })
+          .eq("id", msg.id);
+
+        // Construct nudge follow-up text
+        const noteText = payload.note || "Gentle payment nudge";
+        const dealerId = payload.dealerId || "d2";
+        const convoId = msg.conversationId;
+
+        // Insert WhatsApp AI follow-up message record in conversation
+        const nudgeId = crypto.randomUUID();
+        await supabase.from("messages").insert({
+          id: nudgeId,
+          conversationId: convoId,
+          fromRole: "ai",
+          text: `🚨 *Follow-up Dues Nudge:* Dear sir, this is a friendly reminder for the promised payment. (Note: ${noteText})`,
+          time: new Date().toISOString(),
+          kind: "text",
+          data: null
+        });
+
+        // Update conversation preview thread
+        await supabase.from("conversations").update({
+          preview: `🚨 Follow-up dues nudge sent.`,
+          unread: 1
+        }).eq("id", convoId);
+
+        // Update status to 'sent'
+        payload.status = "sent";
+        payload.sentAt = new Date().toISOString();
+        await supabase
+          .from("messages")
+          .update({ data: JSON.stringify(payload) })
+          .eq("id", msg.id);
+
+        processedCount++;
+      } catch (itemErr) {
+        // Rule 2: Skip bad rows and log; never crash the overall execution batch
+        console.error(`Cron: Skip error on reminder row ${msg.id}:`, itemErr);
+      }
+    }
+
+    // 2. Process expired payment promises (Scenario 9)
+    try {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const { data: expiredPromises } = await supabase
+        .from("payment_promises")
+        .select("*")
+        .eq("status", "pending")
+        .lt("promised_date", todayStr);
+      
+      if (expiredPromises && expiredPromises.length > 0) {
+        for (const promise of expiredPromises) {
+          // Mark as broken
+          await supabase
+            .from("payment_promises")
+            .update({ status: "broken" })
+            .eq("id", promise.id);
+          
+          // Deduct trust from dealer
+          const { data: dealer } = await supabase
+            .from("dealers")
+            .select("trust")
+            .eq("id", promise.dealer_id)
+            .maybeSingle();
+          
+          if (dealer) {
+            const newTrust = Math.max(0, (dealer.trust || 0) - 8);
+            await supabase
+              .from("dealers")
+              .update({ trust: newTrust })
+              .eq("id", promise.dealer_id);
+          }
+        }
+      }
+    } catch (promiseErr) {
+      console.error("Cron: Failed to check expired promises:", promiseErr);
+    }
+
+    return { success: true, processedCount };
+  } catch (err) {
+    // Rule 1: Safe fallback returning false rather than throwing 500 error
+    console.error("Cron: Unhandled execution error:", err);
+    return { success: false, error: String(err) };
+  }
+}
+
 export const runCronAction = createServerFn({ method: "POST" })
   .validator((data: { forceAll?: boolean } | undefined) => data)
   .handler(async ({ data }) => {
-    try {
-      const now = new Date();
-      const forceAll = data?.forceAll ?? false;
-
-      // 1. Fetch all messages of kind "reminder"
-      const { data: reminderMsgs, error } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("kind", "reminder");
-
-      if (error) {
-        console.error("Cron: Failed to fetch reminders from Supabase:", error);
-        return { success: false, error: String(error) };
-      }
-
-      let processedCount = 0;
-
-      for (const msg of (reminderMsgs || [])) {
-        try {
-          if (!msg.data) continue;
-          
-          let payload: any = null;
-          try {
-            payload = JSON.parse(msg.data);
-          } catch (pe) {
-            // Corrupt JSON payload inside message row - skip
-            continue;
-          }
-
-          if (!payload) continue;
-
-          // Check if pending status
-          const status = payload.status || "pending";
-          if (status !== "pending") continue;
-
-          // Check due date
-          const dueDateStr = payload.dueDate;
-          if (!dueDateStr && !forceAll) continue;
-
-          if (dueDateStr && !forceAll) {
-            const dueDate = new Date(dueDateStr);
-            if (dueDate > now) {
-              // Not due yet
-              continue;
-            }
-          }
-
-          // Idempotency check: Transition local status to 'processing'
-          payload.status = "processing";
-          await supabase
-            .from("messages")
-            .update({ data: JSON.stringify(payload) })
-            .eq("id", msg.id);
-
-          // Construct nudge follow-up text
-          const noteText = payload.note || "Gentle payment nudge";
-          const dealerId = payload.dealerId || "d2";
-          const convoId = msg.conversationId;
-
-          // Insert WhatsApp AI follow-up message record in conversation
-          const nudgeId = crypto.randomUUID();
-          await supabase.from("messages").insert({
-            id: nudgeId,
-            conversationId: convoId,
-            fromRole: "ai",
-            text: `🚨 *Follow-up Dues Nudge:* Dear sir, this is a friendly reminder for the promised payment. (Note: ${noteText})`,
-            time: new Date().toISOString(),
-            kind: "text",
-            data: null
-          });
-
-          // Update conversation preview thread
-          await supabase.from("conversations").update({
-            preview: `🚨 Follow-up dues nudge sent.`,
-            unread: 1
-          }).eq("id", convoId);
-
-          // Update status to 'sent'
-          payload.status = "sent";
-          payload.sentAt = new Date().toISOString();
-          await supabase
-            .from("messages")
-            .update({ data: JSON.stringify(payload) })
-            .eq("id", msg.id);
-
-          processedCount++;
-        } catch (itemErr) {
-          // Rule 2: Skip bad rows and log; never crash the overall execution batch
-          console.error(`Cron: Skip error on reminder row ${msg.id}:`, itemErr);
-        }
-      }
-
-      return { success: true, processedCount };
-    } catch (err) {
-      // Rule 1: Safe fallback returning false rather than throwing 500 error
-      console.error("Cron: Unhandled execution error:", err);
-      return { success: false, error: String(err) };
-    }
+    return await executeCronLogic(data?.forceAll);
   });
+
+export const runCronLogic = async () => {
+  return await executeCronLogic(true);
+};
 
 export const askAiQuery = createServerFn({ method: "POST" })
   .validator((query: string) => query)

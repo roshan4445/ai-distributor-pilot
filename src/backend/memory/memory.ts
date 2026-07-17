@@ -12,12 +12,30 @@ export interface ConversationMemory {
   };
 }
 
+function getMemoryRowId(conversationId: string): string {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId);
+  if (isUuid) {
+    const firstChar = conversationId[0].toLowerCase();
+    const newFirst = firstChar === 'e' ? 'f' : 'e';
+    return newFirst + conversationId.slice(1);
+  }
+  // Fallback for seed IDs like 'c1', 'c2'
+  let hash = 0;
+  for (let i = 0; i < conversationId.length; i++) {
+    hash = (hash << 5) - hash + conversationId.charCodeAt(i);
+    hash |= 0;
+  }
+  const hex = Math.abs(hash).toString(16).padStart(8, "0");
+  const fullHex = (hex + hex + hex + hex).substring(0, 32);
+  return `${fullHex.substring(0, 8)}-${fullHex.substring(8, 12)}-${fullHex.substring(12, 16)}-${fullHex.substring(16, 20)}-${fullHex.substring(20, 32)}`;
+}
+
 export async function getMemory(conversationId: string): Promise<ConversationMemory> {
   try {
     const { data } = await supabase
       .from("messages")
       .select("data")
-      .eq("id", `mem-${conversationId}`)
+      .eq("id", getMemoryRowId(conversationId))
       .maybeSingle();
 
     if (data?.data) {
@@ -48,7 +66,7 @@ export async function updateMemory(
 
   try {
     await supabase.from("messages").upsert({
-      id: `mem-${conversationId}`,
+      id: getMemoryRowId(conversationId),
       conversationId: conversationId,
       fromRole: "system_memory",
       text: "system_memory_state",
@@ -64,7 +82,7 @@ export async function updateMemory(
 
 export async function clearMemory(conversationId: string): Promise<void> {
   try {
-    await supabase.from("messages").delete().eq("id", `mem-${conversationId}`);
+    await supabase.from("messages").delete().eq("id", getMemoryRowId(conversationId));
   } catch (e) {
     console.error("Failed to clear persistent memory from database:", e);
   }

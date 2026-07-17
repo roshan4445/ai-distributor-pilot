@@ -100,6 +100,35 @@ async function initDb() {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS conversation_state (
+      conversation_id TEXT PRIMARY KEY,
+      last_activity_at TEXT NOT NULL
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS stock_alerts (
+      id TEXT PRIMARY KEY,
+      sku TEXT NOT NULL,
+      requested_qty INTEGER NOT NULL,
+      available_stock INTEGER NOT NULL,
+      dealer_id TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS payment_promises (
+      id TEXT PRIMARY KEY,
+      dealer_id TEXT NOT NULL,
+      promised_amount REAL NOT NULL,
+      promised_date TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `);
+
   // Check if seeding is needed (check dealers count)
   const result = await db.execute("SELECT COUNT(*) as count FROM dealers");
   const count = Number(result.rows[0].count);

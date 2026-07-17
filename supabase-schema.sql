@@ -3,12 +3,44 @@
 
 -- Drop tables if they exist
 DROP TABLE IF EXISTS "messages" CASCADE;
+DROP TABLE IF EXISTS "conversation_state" CASCADE;
+DROP TABLE IF EXISTS "stock_alerts" CASCADE;
+DROP TABLE IF EXISTS "payment_promises" CASCADE;
 DROP TABLE IF EXISTS "conversations" CASCADE;
 DROP TABLE IF EXISTS "invoices" CASCADE;
 DROP TABLE IF EXISTS "order_items" CASCADE;
 DROP TABLE IF EXISTS "orders" CASCADE;
 DROP TABLE IF EXISTS "products" CASCADE;
 DROP TABLE IF EXISTS "dealers" CASCADE;
+
+-- Create conversation_state table
+CREATE TABLE "conversation_state" (
+  "conversation_id" TEXT PRIMARY KEY,
+  "last_activity_at" TEXT NOT NULL
+);
+ALTER TABLE "conversation_state" DISABLE ROW LEVEL SECURITY;
+
+-- Create stock_alerts table
+CREATE TABLE "stock_alerts" (
+  "id" TEXT PRIMARY KEY,
+  "sku" TEXT NOT NULL,
+  "requested_qty" INTEGER NOT NULL,
+  "available_stock" INTEGER NOT NULL,
+  "dealer_id" TEXT NOT NULL,
+  "created_at" TEXT NOT NULL
+);
+ALTER TABLE "stock_alerts" DISABLE ROW LEVEL SECURITY;
+
+-- Create payment_promises table
+CREATE TABLE "payment_promises" (
+  "id" TEXT PRIMARY KEY,
+  "dealer_id" TEXT NOT NULL,
+  "promised_amount" DOUBLE PRECISION NOT NULL,
+  "promised_date" TEXT NOT NULL,
+  "status" TEXT NOT NULL,
+  "created_at" TEXT NOT NULL
+);
+ALTER TABLE "payment_promises" DISABLE ROW LEVEL SECURITY;
 
 -- Create dealers table
 CREATE TABLE "dealers" (

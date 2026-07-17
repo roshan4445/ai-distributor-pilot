@@ -1,0 +1,429 @@
+﻿Γùç injected env (3) from .env // tip: Γîÿ override existing { override: true }
+=================================================
+≡ƒÜÇ STARTING EXTENDED AI DISTRIBUTOR REGRESSION SUITE
+=================================================
+
+--- Scenario 1: Baseline Draft & Confirm ---
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 6896 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "Sir, order 20 MCB-32A-SP and 15 SW-MOD-6A. Wholesale rate please."
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.95,"toolsUsed":[],"response":"Understood sir! I have drafted an order of **20 MCB 32A Single Pole** and **15 Modular Switch 6A** (Total: **Γé╣6,070**). Please reply with 'Confirm' to finalize the order and generate your invoice receipt.","kind":"order","data":{"title":"Order Draft","delivery":"Standard","total":6070,"items":[{"sku":"MCB-32A-SP","name":"MCB 32A Single Pole","qty":20,"price":245},{"sku":"SW-MOD-6A","name":"Modular Switch 6A","qty":15,"price":78}]}}
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 20, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 49addbef-d0d4-4a0d-8bd2-835d0cacdeef
+ΓÅ░ Timestamp:       2026-07-17T17:51:44.101Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  222ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     50.2 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Offline Rules Mode triggered (100% LLM token savings)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+ΓÜí [TOKEN OPTIMIZER] Local router bypass active. Query: "Please confirm the order sir." | Skipping ChatGroq call.
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 20, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 1b427cfd-b549-4c1f-800b-8937d658ff56
+ΓÅ░ Timestamp:       2026-07-17T17:51:44.323Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  408ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     51.8 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Saved ~3,500 prompt tokens (100% savings via Local Router)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Login to the Kumar Electricals B2B portal
+  2. Navigate to the 'Order Draft' section
+  3. Add 20x MCB 32A Single Pole to the order draft
+  4. Add 15x Modular Switch 6A to the order draft
+  5. Review the order draft for accuracy
+  6. Confirm the order draft
+≡ƒ¢á∩╕Å Tools Invoked:   createOrder, updateInventory, generateInvoice, updateLedger
+   Success Count:   1 | Failure Count: 0
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+--- Scenario 2: Draft -> Correction -> Confirm ---
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7011 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "Sir, order 20 MCB-32A-SP and 15 SW-MOD-6A."
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.95,"toolsUsed":[],"response":"Understood sir! I have drafted an order of **20 MCB 32A Single Pole** and **15 Modular Switch 6A** (Total: **Γé╣6,070**). Please reply with 'Confirm' to finalize the order and generate your invoice receipt.","kind":"order","data":{"title":"Order Draft","delivery":"Standard","total":6070,"items":[{"sku":"MCB-32A-SP","name":"MCB 32A Single Pole","qty":20,"price":245},{"sku":"SW-MOD-6A","name":"Modular Switch 6A","qty":15,"price":78}]}}
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 20, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: c587d777-69fa-4bc8-be7c-fa34991523be
+ΓÅ░ Timestamp:       2026-07-17T17:51:44.753Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  113ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     35.1 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Offline Rules Mode triggered (100% LLM token savings)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7133 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "Bhai MCB ki quantity change karke 25 pieces kar do switches same rehne do"
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.95,"toolsUsed":[],"response":"Understood sir! I have updated your order draft: **25 MCB 32A Single Pole** and **15 Modular Switch 6A** (Total: **Γé╣7,295**). Please reply with 'Confirm' to finalize the order.","kind":"order","data":{"title":"Order Draft","delivery":"Standard","total":7295,"items":[{"sku":"MCB-32A-SP","name":"MCB 32A Single Pole","qty":25,"price":245},{"sku":"SW-MOD-6A","name":"Modular Switch 6A","qty":15,"price":78}]}}
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 25, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 9977dbcd-223f-417a-9779-13bbccd5958c
+ΓÅ░ Timestamp:       2026-07-17T17:51:44.867Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  173ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     36.2 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Offline Rules Mode triggered (100% LLM token savings)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+ΓÜí [TOKEN OPTIMIZER] Local router bypass active. Query: "Confirm order now." | Skipping ChatGroq call.
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 25, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: f1e2d70b-4f12-4c1f-99f9-ef74b68011bc
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.040Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  122ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     37.1 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Saved ~3,500 prompt tokens (100% savings via Local Router)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒ¢á∩╕Å Tools Invoked:   createOrder, updateInventory, generateInvoice, updateLedger
+   Success Count:   1 | Failure Count: 0
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+--- Scenario 3: Abandonment / Staleness Gating ---
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7132 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "Sir, order 20 MCB-32A-SP and 15 SW-MOD-6A."
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.95,"toolsUsed":[],"response":"Understood sir! I have drafted an order of **20 MCB 32A Single Pole** and **15 Modular Switch 6A** (Total: **Γé╣6,070**). Please reply with 'Confirm' to finalize the order and generate your invoice receipt.","kind":"order","data":{"title":"Order Draft","delivery":"Standard","total":6070,"items":[{"sku":"MCB-32A-SP","name":"MCB 32A Single Pole","qty":20,"price":245},{"sku":"SW-MOD-6A","name":"Modular Switch 6A","qty":15,"price":78}]}}
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 20, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 01609fd4-09c7-40cb-b170-5e1863a884de
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.185Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  116ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     38.4 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Offline Rules Mode triggered (100% LLM token savings)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 299b4279-1434-4b0f-a395-2d6bcc052352
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.311Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: WARNING
+ΓÅ▒∩╕Å Execution Time:  9ms
+ΓÜÖ∩╕Å Current State:   WAITING_FOR_USER
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     38.5 MB
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Pause execution
+  2. Await stale confirmation
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Staleness gating triggered.
+============================================================
+--- Scenario 4: Mixed Language / Vague SKU ---
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7132 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "sir muje Havells wala switch 20 pieces de do"
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.95,"toolsUsed":[],"response":"Understood sir! I have drafted an order of **20 Modular Switch 6A** (Total: **Γé╣1,560**). Please reply with 'Confirm' to finalize the order and generate your invoice receipt.","kind":"order","data":{"title":"Order Draft","delivery":"Standard","total":1560,"items":[{"sku":"SW-MOD-6A","name":"Modular Switch 6A","qty":20,"price":78}]}}
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 20, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: ec7f5bb7-c6ab-4569-9464-a40775fcf9f8
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.343Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  103ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     39.5 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Offline Rules Mode triggered (100% LLM token savings)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+--- Scenario 5: Insufficient Stock Handling ---
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7130 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "Order 50 MCB-32A-SP and 10 SW-MOD-6A"
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.75,"toolsUsed":[],"response":"We only have 42 units of MCB 32A Single Pole available in stock. Would you like to adjust your order?","kind":"text","data":null}
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: cc30d4bd-a7b9-4a90-90db-d8441ade65ee
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.458Z
+≡ƒÄ» Intent:          ORDER (Confidence: 75.0%)
+ΓÜí Status:          SUCCESS | Health: WARNING
+ΓÅ▒∩╕Å Execution Time:  110ms
+ΓÜÖ∩╕Å Current State:   WAITING_FOR_USER
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     40.5 MB
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Pause execution
+  2. Await user clarification
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Clarification needed: Confidence score (0.75) is between 0.50 and 0.79.
+============================================================
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7250 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "ok give me 30 then"
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.95,"toolsUsed":[],"response":"Understood sir! I have updated your order draft: **30 MCB 32A Single Pole** and **30 MCB 16A Single Pole** and **10 Modular Switch 6A** and **50 3-Pin Socket 16A** (Total: **Γé╣20,230**). Please reply with 'Confirm' to finalize the order.","kind":"order","data":{"title":"Order Draft","delivery":"Standard","total":20230,"items":[{"sku":"MCB-32A-SP","name":"MCB 32A Single Pole","qty":30,"price":245},{"sku":"MCB-16A-SP","name":"MCB 16A Single Pole","qty":30,"price":220},{"sku":"SW-MOD-6A","name":"Modular Switch 6A","qty":10,"price":78},{"sku":"SKT-16A-3P","name":"3-Pin Socket 16A","qty":50,"price":110}]}}
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 30, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'MCB-16A-SP', qty: 30, stock: 25 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 8583c592-735b-4513-b157-b758a0543c5b
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.581Z
+≡ƒÄ» Intent:          ORDER (Confidence: 75.0%)
+ΓÜí Status:          SUCCESS | Health: WARNING
+ΓÅ▒∩╕Å Execution Time:  114ms
+ΓÜÖ∩╕Å Current State:   WAITING_FOR_USER
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     41.4 MB
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Pause execution
+  2. Await stock adjustment
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Insufficient stock gating triggered.
+============================================================
+--- Scenario 6: Repeat Order Flow ---
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7126 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "same as last order"
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.95,"toolsUsed":[],"response":"Understood sir! I have drafted a repeat of your previous order: **25 MCB 32A Single Pole** and **15 Modular Switch 6A** (Total: **Γé╣7,295**). Please reply with 'Confirm' to finalize the order and generate your invoice receipt.","kind":"order","data":{"title":"Order Draft","delivery":"Standard","items":[{"sku":"MCB-32A-SP","name":"MCB 32A Single Pole","qty":25,"price":245},{"sku":"SW-MOD-6A","name":"Modular Switch 6A","qty":15,"price":78}]}}
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 25, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 8656ffcb-b711-4b16-8e40-038afd4bf99f
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.727Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  151ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     42.5 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Offline Rules Mode triggered (100% LLM token savings)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+ΓÜí [TOKEN OPTIMIZER] Local router bypass active. Query: "Confirm this" | Skipping ChatGroq call.
+STOCK CHECK DEBUG: { sku: 'MCB-32A-SP', qty: 25, stock: 42 }
+STOCK CHECK DEBUG: { sku: 'SW-MOD-6A', qty: 15, stock: 1840 }
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: ed6efb84-b2a5-46c5-8e01-13b358b525cd
+ΓÅ░ Timestamp:       2026-07-17T17:51:45.880Z
+≡ƒÄ» Intent:          ORDER (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  125ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     43.4 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Saved ~3,500 prompt tokens (100% savings via Local Router)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify calling dealer account
+  2. Verify requested product SKU list & prices
+  3. Perform stock levels and inventory safety checks
+  4. Format draft order items proposal
+  5. Check dealer credit line and outstanding dues
+  6. Insert confirmed order in ledger
+  7. Deduct stock allocations from Products database
+  8. Instantly generate GST invoice
+  9. Post invoice card directly to chat thread
+≡ƒ¢á∩╕Å Tools Invoked:   createOrder, updateInventory, generateInvoice, updateLedger
+   Success Count:   1 | Failure Count: 0
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+--- Scenario 7: Ambiguous Usual Orders ---
+Invoking Groq...
+≡ƒƒó REAL LLM CALL: GROQ_API_KEY present, invoking ChatGroq model (Estimated Prompt size: 7324 tokens)...
+≡ƒƒí FALLBACK RULES ENGINE: Triggering rules engine fallback for query: "sir repeat my usual order"
+RAW FALLBACK JSON: {"intent":"ORDER","confidence":0.75,"toolsUsed":[],"response":"Sir, you have multiple different recent orders in your history. Could you please specify which one you would like to repeat?","kind":"text","data":null}
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 6fd4cd9d-8bff-4de7-8577-d95c7e9851bb
+ΓÅ░ Timestamp:       2026-07-17T17:51:46.033Z
+≡ƒÄ» Intent:          ORDER (Confidence: 75.0%)
+ΓÜí Status:          SUCCESS | Health: WARNING
+ΓÅ▒∩╕Å Execution Time:  55ms
+ΓÜÖ∩╕Å Current State:   WAITING_FOR_USER
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     44.4 MB
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Pause execution
+  2. Await user clarification
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Clarification needed: Confidence score (0.75) is between 0.50 and 0.79.
+============================================================
+--- Scenario 8: Payment Promise Tracking ---
+ΓÜí [TOKEN OPTIMIZER] Local router bypass active. Query: "will pay outstanding dues on Nov 5" | Skipping ChatGroq call.
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: fb617c02-6457-4d09-a84e-22d305fd3261
+ΓÅ░ Timestamp:       2026-07-17T17:51:46.108Z
+≡ƒÄ» Intent:          PAYMENT_PROMISE (Confidence: 75.0%)
+ΓÜí Status:          SUCCESS | Health: WARNING
+ΓÅ▒∩╕Å Execution Time:  6ms
+ΓÜÖ∩╕Å Current State:   WAITING_FOR_USER
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     45.0 MB
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Pause execution
+  2. Await user clarification
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Clarification needed: Confidence score (0.75) is between 0.50 and 0.79.
+============================================================
+ΓÜí [TOKEN OPTIMIZER] Local router bypass active. Query: "will pay 50000 tomorrow" | Skipping ChatGroq call.
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 45ce2650-5875-4166-9afc-38a1ce5d2006
+ΓÅ░ Timestamp:       2026-07-17T17:51:46.119Z
+≡ƒÄ» Intent:          PAYMENT_PROMISE (Confidence: 95.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  45ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     45.7 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Saved ~3,500 prompt tokens (100% savings via Local Router)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Identify dealer details
+  2. Extract expected payment date and promised amount
+  3. Create structured scheduler reminder for dues collection
+  4. Draft confirmation message informing dealer of follow-up schedule
+≡ƒ¢á∩╕Å Tools Invoked:   scheduleReminder
+   Success Count:   1 | Failure Count: 0
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+ΓÜí [TOKEN OPTIMIZER] Local router bypass active. Query: "paid 50000 today via UPI" | Skipping ChatGroq call.
+============================================================
+≡ƒöì [AGENT TRACE LOG] | Trace ID: 574e5cd1-2b4e-4631-8c88-17fe2be32e58
+ΓÅ░ Timestamp:       2026-07-17T17:51:46.164Z
+≡ƒÄ» Intent:          PAYMENT (Confidence: 98.0%)
+ΓÜí Status:          SUCCESS | Health: HEALTHY
+ΓÅ▒∩╕Å Execution Time:  52ms
+ΓÜÖ∩╕Å Current State:   COMPLETED
+≡ƒ¢í∩╕Å Guardrail:       PASSED
+≡ƒôª Memory Used:     46.4 MB
+≡ƒ¬Ö Tokens Used:     Prompt: 0 | Response: 0 | Total: 0
+≡ƒÆí Token Savings:   Saved ~3,500 prompt tokens (100% savings via Local Router)
+≡ƒùÆ∩╕Å Execution Plan:
+  1. Verify dealer profile credentials
+  2. Parse payment transaction reference and amount
+  3. Deduct amount from dealer's outstanding dues balance
+  4. Register transaction receipt in ledger
+  5. Save confirmation message template in chat logs
+≡ƒ¢á∩╕Å Tools Invoked:   recordPayment, updateLedger
+   Success Count:   1 | Failure Count: 0
+≡ƒºá Reflection:      Γ£à SUCCESS
+   Summary:         Execution verified: all business tools, invoices, and ledgers processed successfully.
+============================================================
+--- Scenario 9: Cron Job Promise Verification ---
+
+=================================================
+≡ƒôè REGRESSION TESTS SUMMARY TABLE
+=================================================
+| Scenario | Status |
+|---|---|
+| 1. Baseline Draft & Confirm | **PASS** |
+| 2. Draft -> Correction -> Confirm | **PASS** |
+| 3. Abandonment / Staleness Gating | **PASS** |
+| 4. Mixed Language / Vague SKU | **PASS** |
+| 5. Insufficient Stock Handling | **FAIL** |
+| 6. Repeat Order Flow | **PASS** |
+| 7. Ambiguous Usual Orders | **PASS** |
+| 8. Payment Promise Tracking | **PASS** |
+| 9. Cron Job Promise Verification | **PASS** |
+=================================================
+
